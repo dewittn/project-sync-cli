@@ -11,6 +11,14 @@ export interface ThingsTask {
   area?: string;
 }
 
+export interface ProjectDetails {
+  title: string;
+  uuid: string;
+  area?: string;
+  notes?: string;
+  deadline?: string;
+}
+
 export interface TestConnectionResult {
   success: boolean;
   version?: string;
@@ -336,6 +344,97 @@ export class ThingsClient {
 
     const output = new TextDecoder().decode(stdout).trim();
     return output.split(", ").map((p) => p.trim());
+  }
+
+  async getProjectDetails(projectName: string): Promise<ProjectDetails | null> {
+    const script = `
+      tell application "Things3"
+        set foundProject to null
+        repeat with p in projects
+          if name of p is "${projectName}" then
+            set foundProject to p
+            exit repeat
+          end if
+        end repeat
+
+        if foundProject is null then
+          return "PROJECT_NOT_FOUND"
+        end if
+
+        set projectTitle to name of foundProject as string
+        set projectUuid to id of foundProject as string
+        set projectNotes to ""
+        set projectArea to ""
+        set projectDeadline to ""
+
+        try
+          set projectNotes to notes of foundProject as string
+        end try
+
+        try
+          set projectArea to name of area of foundProject as string
+        end try
+
+        try
+          set projectDeadline to due date of foundProject as string
+        end try
+
+        return "TITLE:" & projectTitle & "|UUID:" & projectUuid & "|AREA:" & projectArea & "|NOTES:" & projectNotes & "|DEADLINE:" & projectDeadline
+      end tell
+    `;
+
+    const command = new Deno.Command("osascript", {
+      args: ["-e", script],
+    });
+
+    const { stdout, stderr } = await command.output();
+
+    if (stderr.length > 0) {
+      throw new Error(
+        `Failed to fetch project details: ${new TextDecoder().decode(stderr)}`,
+      );
+    }
+
+    const output = new TextDecoder().decode(stdout).trim();
+
+    if (output === "PROJECT_NOT_FOUND") {
+      return null;
+    }
+
+    return this.parseProjectDetails(output);
+  }
+
+  private parseProjectDetails(output: string): ProjectDetails {
+    const parts = output.split("|");
+    const details: ProjectDetails = {
+      title: "",
+      uuid: "",
+    };
+
+    for (const part of parts) {
+      if (part.startsWith("TITLE:")) {
+        details.title = part.substring(6);
+      } else if (part.startsWith("UUID:")) {
+        details.uuid = part.substring(5);
+      } else if (part.startsWith("AREA:")) {
+        const area = part.substring(5);
+        if (area && area !== "missing value") {
+          details.area = area;
+        }
+      } else if (part.startsWith("NOTES:")) {
+        const notes = part.substring(6);
+        if (notes && notes !== "missing value") {
+          details.notes = notes;
+        }
+      } else if (part.startsWith("DEADLINE:")) {
+        const deadline = part.substring(9);
+        if (deadline && deadline !== "missing value") {
+          details.deadline = deadline;
+        }
+      }
+    }
+
+    return details;
   }
 
   async getAreas(): Promise<string[]> {
