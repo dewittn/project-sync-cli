@@ -7,6 +7,7 @@ export interface ThingsProject {
   id: string;
   title: string;
   notes?: string;
+  area?: string;
 }
 
 export async function projectSyncCommand(
@@ -71,9 +72,12 @@ export async function projectSyncCommand(
         // Update the Things UUID field if it's different
         const currentUuid = matchingRecord["Things UUID"] ||
           matchingRecord["things_uuid"];
-        if (currentUuid !== project.id) {
-          const updates: Partial<NocoDBRecord> = {};
+        const updates: Partial<NocoDBRecord> = {};
+        let needsUpdate = false;
 
+        // Always update UUID if different
+        if (currentUuid !== project.id) {
+          needsUpdate = true;
           // Try different common field names for UUID
           if (matchingRecord["Things UUID"] !== undefined) {
             updates["Things UUID"] = project.id;
@@ -85,20 +89,46 @@ export async function projectSyncCommand(
             // Default to "Things UUID" if no existing field found
             updates["Things UUID"] = project.id;
           }
+        }
 
-          // Update Goal field with notes if available
-          if (project.notes) {
-            if (matchingRecord["Goal"] !== undefined) {
-              updates["Goal"] = project.notes;
-            } else if (matchingRecord["goal"] !== undefined) {
-              updates["goal"] = project.notes;
-            } else if (matchingRecord["Notes"] !== undefined) {
-              updates["Notes"] = project.notes;
-            } else if (matchingRecord["notes"] !== undefined) {
-              updates["notes"] = project.notes;
-            }
+        // Always update Project Name
+        if (matchingRecord["Project Name"] !== undefined) {
+          updates["Project Name"] = project.title;
+        } else if (matchingRecord["project_name"] !== undefined) {
+          updates["project_name"] = project.title;
+        } else {
+          updates["Project Name"] = project.title;
+        }
+        needsUpdate = true;
+
+        // Always update Goal field
+        const goalValue = project.notes || "";
+        if (matchingRecord["Goal"] !== undefined) {
+          updates["Goal"] = goalValue;
+        } else if (matchingRecord["goal"] !== undefined) {
+          updates["goal"] = goalValue;
+        } else if (matchingRecord["Notes"] !== undefined) {
+          updates["Notes"] = goalValue;
+        } else if (matchingRecord["notes"] !== undefined) {
+          updates["notes"] = goalValue;
+        } else {
+          updates["Goal"] = goalValue;
+        }
+        needsUpdate = true;
+
+        // Update Area field if available
+        if (project.area) {
+          if (matchingRecord["Area"] !== undefined) {
+            updates["Area"] = project.area;
+          } else if (matchingRecord["area"] !== undefined) {
+            updates["area"] = project.area;
+          } else {
+            updates["Area"] = project.area;
           }
+          needsUpdate = true;
+        }
 
+        if (needsUpdate) {
           await nocodb.updateRecord(matchingRecord.Id, updates);
           console.log(green(`✓ Updated record for project: ${project.title}`));
           updated++;
@@ -112,11 +142,13 @@ export async function projectSyncCommand(
         if (shouldCreateRecord) {
           const newRecord: Partial<NocoDBRecord> = {
             Title: project.title,
+            "Project Name": project.title,
             "Things UUID": project.id,
+            Goal: project.notes || "",
           };
 
-          if (project.notes) {
-            newRecord.Goal = project.notes;
+          if (project.area) {
+            newRecord.Area = project.area;
           }
 
           await nocodb.createRecord(newRecord);
@@ -149,12 +181,17 @@ async function getThingsProjects(): Promise<ThingsProject[]> {
         set projId to id of proj as string
         set projTitle to name of proj as string
         set projNotes to ""
+        set projArea to ""
 
         try
           set projNotes to notes of proj as string
         end try
 
-        set projectList to projectList & {projId & "|" & projTitle & "|" & projNotes}
+        try
+          set projArea to name of area of proj as string
+        end try
+
+        set projectList to projectList & {projId & "|" & projTitle & "|" & projNotes & "|" & projArea}
       end repeat
       return projectList as string
     end tell
@@ -188,6 +225,7 @@ async function getThingsProjects(): Promise<ThingsProject[]> {
         id: parts[0],
         title: parts[1],
         notes: parts[2] || undefined,
+        area: parts[3] || undefined,
       };
       projects.push(project);
     }
@@ -201,6 +239,10 @@ function promptForUuid(project: ThingsProject): boolean {
     yellow(`\nNo matching record found for project: "${project.title}"`),
   );
   console.log(`Project UUID: ${project.id}`);
+
+  if (project.area) {
+    console.log(`Project area: ${project.area}`);
+  }
 
   if (project.notes) {
     console.log(
