@@ -1,0 +1,114 @@
+#!/usr/bin/env -S deno run --allow-net --allow-read --allow-write --allow-env --allow-run
+
+import { parseArgs } from "@std/cli/parse-args";
+import { bold, green, red, yellow } from "@std/fmt/colors";
+import { syncCommand } from "./commands/sync.ts";
+import { configCommand } from "./commands/config.ts";
+import { statusCommand } from "./commands/status.ts";
+import { testCommand } from "./commands/test.ts";
+import { mapCommand } from "./commands/map.ts";
+import { projectSyncCommand } from "./commands/project-sync.ts";
+
+const VERSION = "0.1.0";
+
+function printHelp(): void {
+  console.log(`
+${bold("NocoDB-Things Sync CLI")} v${VERSION}
+
+${bold("USAGE:")}
+  nocodb-things <command> [options]
+
+${bold("COMMANDS:")}
+  sync              Synchronize data between NocoDB and Things
+  project-sync      Synchronize Things projects with NocoDB records
+  config            Configure sync settings
+  status            Show current sync status
+  map               Setup field mappings between NocoDB and Things
+  test              Test connections to NocoDB and Things
+
+${bold("GLOBAL OPTIONS:")}
+  -h, --help        Show this help message
+  -v, --version     Show version information
+  --verbose         Enable verbose logging
+
+${bold("EXAMPLES:")}
+  nocodb-things sync                    # Run sync with default settings
+  nocodb-things sync --full             # Force full synchronization
+  nocodb-things project-sync            # Sync Things projects to NocoDB
+  nocodb-things config --set            # Interactive configuration setup
+  nocodb-things status                  # Check sync status and last run
+  nocodb-things test                    # Test API connections
+
+For more information on a specific command, use:
+  nocodb-things <command> --help
+`);
+}
+
+async function main(): Promise<void> {
+  const args = parseArgs(Deno.args, {
+    boolean: ["help", "version", "verbose"],
+    alias: {
+      h: "help",
+      v: "version",
+    },
+    stopEarly: true,
+    unknown: (arg) => {
+      if (arg.startsWith("-")) {
+        console.error(red(`Unknown option: ${arg}`));
+        console.log(`Run 'nocodb-things --help' for usage information.`);
+        Deno.exit(1);
+      }
+      return true;
+    },
+  });
+
+  if (args.version) {
+    console.log(`nocodb-things v${VERSION}`);
+    Deno.exit(0);
+  }
+
+  if (args.help || args._.length === 0) {
+    printHelp();
+    Deno.exit(0);
+  }
+
+  const command = String(args._[0]);
+  const commandArgs = args._.slice(1).map(String);
+
+  try {
+    switch (command) {
+      case "sync":
+        await syncCommand(commandArgs, args);
+        break;
+      case "project-sync":
+        await projectSyncCommand(commandArgs, args);
+        break;
+      case "config":
+        await configCommand(commandArgs, args);
+        break;
+      case "status":
+        await statusCommand(commandArgs, args);
+        break;
+      case "test":
+        await testCommand(commandArgs, args);
+        break;
+      case "map":
+        await mapCommand(commandArgs, args);
+        break;
+      default:
+        console.error(red(`Unknown command: ${command}`));
+        console.log(`Run 'nocodb-things --help' for usage information.`);
+        Deno.exit(1);
+    }
+  } catch (error) {
+    console.error(red(`Error: ${error.message}`));
+    if (args.verbose) {
+      console.error(error);
+    }
+    Deno.exit(1);
+  }
+}
+
+if (import.meta.main) {
+  await main();
+}
