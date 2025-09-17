@@ -1,13 +1,14 @@
 #!/usr/bin/env -S deno run --allow-net --allow-read --allow-write --allow-env --allow-run
 
 import { parseArgs } from "@std/cli/parse-args";
-import { bold, green, red, yellow } from "@std/fmt/colors";
+import { bold, red } from "@std/fmt/colors";
 import { syncCommand } from "./commands/sync.ts";
 import { configCommand } from "./commands/config.ts";
 import { statusCommand } from "./commands/status.ts";
 import { testCommand } from "./commands/test.ts";
 import { mapCommand } from "./commands/map.ts";
 import { projectSyncCommand } from "./commands/project-sync.ts";
+import { listProjectsCommand } from "./commands/list-projects.ts";
 
 const VERSION = "0.1.0";
 
@@ -21,6 +22,7 @@ ${bold("USAGE:")}
 ${bold("COMMANDS:")}
   sync              Synchronize data between NocoDB and Things
   project-sync      Synchronize Things projects with NocoDB records
+  list-projects     List all projects found in Things
   config            Configure sync settings
   status            Show current sync status
   map               Setup field mappings between NocoDB and Things
@@ -35,6 +37,7 @@ ${bold("EXAMPLES:")}
   nocodb-things sync                    # Run sync with default settings
   nocodb-things sync --full             # Force full synchronization
   nocodb-things project-sync            # Sync Things projects to NocoDB
+  nocodb-things list-projects           # List all Things projects
   nocodb-things config --set            # Interactive configuration setup
   nocodb-things status                  # Check sync status and last run
   nocodb-things test                    # Test API connections
@@ -82,6 +85,9 @@ async function main(): Promise<void> {
         break;
       case "project-sync":
         await projectSyncCommand(commandArgs, args);
+        break;
+      case "list-projects":
+        await listProjectsCommand(commandArgs, args);
         break;
       case "config":
         await configCommand(commandArgs, args);
