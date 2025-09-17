@@ -1,6 +1,6 @@
 import { parseArgs } from "@std/cli/parse-args";
-import { bold, green, red, yellow, cyan, dim } from "@std/fmt/colors";
-import { ThingsClient, ProjectDetails } from "../../api/things.ts";
+import { bold, cyan, dim, green, red, yellow } from "@std/fmt/colors";
+import { ProjectDetails, ThingsClient } from "../../api/things.ts";
 
 export async function listProjectsCommand(
   commandArgs: string[],
@@ -67,7 +67,11 @@ ${bold("EXAMPLES:")}
       if (args.details) {
         const projectIndex = parseInt(args.details) - 1;
         if (projectIndex < 0 || projectIndex >= projects.length) {
-          console.error(red(`❌ Invalid project number. Please choose between 1 and ${projects.length}`));
+          console.error(
+            red(
+              `❌ Invalid project number. Please choose between 1 and ${projects.length}`,
+            ),
+          );
           Deno.exit(1);
         }
         projectName = projects[projectIndex];
@@ -75,7 +79,9 @@ ${bold("EXAMPLES:")}
         projectName = args.project;
       }
 
-      console.log(yellow(`\n🔍 Fetching details for project: ${bold(projectName)}`));
+      console.log(
+        yellow(`\n🔍 Fetching details for project: ${bold(projectName)}`),
+      );
 
       const projectDetails = await thingsClient.getProjectDetails(projectName);
 
@@ -89,13 +95,25 @@ ${bold("EXAMPLES:")}
     }
 
     // Display all projects list
-    console.log(green(`\n✅ Found ${projects.length} project${projects.length === 1 ? '' : 's'}:\n`));
+    console.log(
+      green(
+        `\n✅ Found ${projects.length} project${
+          projects.length === 1 ? "" : "s"
+        }:\n`,
+      ),
+    );
 
     projects.forEach((project, index) => {
       console.log(`${(index + 1).toString().padStart(3)}. ${project}`);
     });
 
-    console.log(dim(`\n💡 Use ${bold('--details <number>')} or ${bold('--project <name>')} to get detailed information about a specific project\n`));
+    console.log(
+      dim(
+        `\n💡 Use ${bold("--details <number>")} or ${
+          bold("--project <name>")
+        } to get detailed information about a specific project\n`,
+      ),
+    );
   } catch (error) {
     console.error(red(`❌ Error fetching projects: ${error.message}`));
     if (globalArgs.verbose) {
@@ -108,25 +126,25 @@ ${bold("EXAMPLES:")}
 function displayProjectDetails(details: ProjectDetails): void {
   console.log(green(`\n✅ Project Details:\n`));
 
-  console.log(`${bold('Title:')}     ${details.title}`);
-  console.log(`${bold('UUID:')}      ${cyan(details.uuid)}`);
+  console.log(`${bold("Title:")}     ${details.title}`);
+  console.log(`${bold("UUID:")}      ${cyan(details.uuid)}`);
 
   if (details.area) {
-    console.log(`${bold('Area:')}      ${details.area}`);
+    console.log(`${bold("Area:")}      ${details.area}`);
   } else {
-    console.log(`${bold('Area:')}      ${dim('(none)')}`);
+    console.log(`${bold("Area:")}      ${dim("(none)")}`);
   }
 
   if (details.deadline) {
-    console.log(`${bold('Deadline:')}  ${yellow(details.deadline)}`);
+    console.log(`${bold("Deadline:")}  ${yellow(details.deadline)}`);
   } else {
-    console.log(`${bold('Deadline:')}  ${dim('(none)')}`);
+    console.log(`${bold("Deadline:")}  ${dim("(none)")}`);
   }
 
   if (details.notes) {
-    console.log(`${bold('Notes:')}\n${details.notes}`);
+    console.log(`${bold("Notes:")}\n${details.notes}`);
   } else {
-    console.log(`${bold('Notes:')}     ${dim('(none)')}`);
+    console.log(`${bold("Notes:")}     ${dim("(none)")}`);
   }
 
   console.log();

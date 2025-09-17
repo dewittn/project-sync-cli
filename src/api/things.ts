@@ -326,7 +326,30 @@ export class ThingsClient {
   async getProjects(): Promise<string[]> {
     const script = `
       tell application "Things3"
-        return name of every project
+        set projectNames to {}
+        repeat with proj in projects
+          -- Check if project is recurring (has a repeater)
+          set isRecurring to false
+          try
+            set projRepeater to repeater of proj
+            if projRepeater is not missing value then
+              set isRecurring to true
+            end if
+          on error
+            -- No repeater property means not recurring
+          end try
+
+          -- Only include non-recurring projects
+          if not isRecurring then
+            set end of projectNames to name of proj
+          end if
+        end repeat
+
+        -- Join the list with ", " separator
+        set AppleScript's text item delimiters to ", "
+        set projectNamesString to projectNames as string
+        set AppleScript's text item delimiters to ""
+        return projectNamesString
       end tell
     `;
 
@@ -352,8 +375,22 @@ export class ThingsClient {
         set foundProject to null
         repeat with p in projects
           if name of p is "${projectName}" then
-            set foundProject to p
-            exit repeat
+            -- Check if project is recurring
+            set isRecurring to false
+            try
+              set projRepeater to repeater of p
+              if projRepeater is not missing value then
+                set isRecurring to true
+              end if
+            on error
+              -- No repeater property means not recurring
+            end try
+
+            -- Only return non-recurring projects
+            if not isRecurring then
+              set foundProject to p
+              exit repeat
+            end if
           end if
         end repeat
 

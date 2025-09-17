@@ -176,24 +176,43 @@ export async function projectSyncCommand(
 async function getThingsProjects(): Promise<ThingsProject[]> {
   const script = `
     tell application "Things3"
-      set projectList to {}
+      set outputList to {}
       repeat with proj in projects
-        set projId to id of proj as string
-        set projTitle to name of proj as string
-        set projNotes to ""
-        set projArea to ""
-
+        -- Check if project is recurring (has a repeater)
+        set isRecurring to false
         try
-          set projNotes to notes of proj as string
+          set projRepeater to repeater of proj
+          if projRepeater is not missing value then
+            set isRecurring to true
+          end if
+        on error
+          -- No repeater property means not recurring
         end try
 
-        try
-          set projArea to name of area of proj as string
-        end try
+        -- Only include non-recurring projects
+        if not isRecurring then
+          set projId to id of proj as string
+          set projTitle to name of proj as string
+          set projNotes to ""
+          set projArea to ""
 
-        set projectList to projectList & {projId & "|" & projTitle & "|" & projNotes & "|" & projArea}
+          try
+            set projNotes to notes of proj as string
+          end try
+
+          try
+            set projArea to name of area of proj as string
+          end try
+
+          set end of outputList to "PROJECT_START|" & projId & "|" & projTitle & "|" & projNotes & "|" & projArea & "|PROJECT_END"
+        end if
       end repeat
-      return projectList as string
+
+      -- Join with newlines to avoid AppleScript list to string issues
+      set AppleScript's text item delimiters to linefeed
+      set outputString to outputList as string
+      set AppleScript's text item delimiters to ""
+      return outputString
     end tell
   `;
 
@@ -216,18 +235,25 @@ async function getThingsProjects(): Promise<ThingsProject[]> {
   }
 
   const projects: ThingsProject[] = [];
-  const projectLines = output.split(", ");
+  const projectLines = output.split("\n");
 
   for (const line of projectLines) {
-    const parts = line.split("|");
-    if (parts.length >= 2) {
-      const project: ThingsProject = {
-        id: parts[0],
-        title: parts[1],
-        notes: parts[2] || undefined,
-        area: cleanAreaName(parts[3]) || undefined,
-      };
-      projects.push(project);
+    if (line.includes("PROJECT_START") && line.includes("PROJECT_END")) {
+      const match = line.match(
+        /PROJECT_START\|([^|]*)\|([^|]*)\|([^|]*)\|([^|]*)\|PROJECT_END/,
+      );
+      if (match) {
+        const [_, id, title, notes, area] = match;
+        const project: ThingsProject = {
+          id: id || "",
+          title: title || "",
+          notes: notes || undefined,
+          area: cleanAreaName(area) || undefined,
+        };
+        if (project.id && project.title) {
+          projects.push(project);
+        }
+      }
     }
   }
 
@@ -245,7 +271,7 @@ function cleanAreaName(areaName?: string): string | undefined {
 
   // Pattern 1: Remove UUID-like suffixes (long alphanumeric strings at the end)
   const uuidPattern = /[A-Za-z0-9]{20,}$/;
-  let cleaned = areaName.replace(uuidPattern, '');
+  let cleaned = areaName.replace(uuidPattern, "");
 
   // Pattern 2: Sometimes there might be a separator or other patterns
   // If we detect common separators, try to split and take the first part
