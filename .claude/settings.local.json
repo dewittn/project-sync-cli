@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "WebSearch",
+      "WebFetch(domain:nocodb.com)",
+      "WebFetch(domain:docs.nocodb.com)",
+      "Bash(deno task:*)",
+      "Bash(deno lint:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "WebFetch(domain:data-apis-v2.nocodb.com)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

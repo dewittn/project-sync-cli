@@ -225,13 +225,45 @@ async function getThingsProjects(): Promise<ThingsProject[]> {
         id: parts[0],
         title: parts[1],
         notes: parts[2] || undefined,
-        area: parts[3] || undefined,
+        area: cleanAreaName(parts[3]) || undefined,
       };
       projects.push(project);
     }
   }
 
   return projects;
+}
+
+function cleanAreaName(areaName?: string): string | undefined {
+  if (!areaName) {
+    return undefined;
+  }
+
+  // Things often appends UUIDs to area names (e.g., "Authoring3nhWkQwUK5mEKctntFKfHj")
+  // UUIDs are typically 22+ characters long and contain alphanumeric characters
+  // We'll try to detect and remove UUID patterns from the end of the string
+
+  // Pattern 1: Remove UUID-like suffixes (long alphanumeric strings at the end)
+  const uuidPattern = /[A-Za-z0-9]{20,}$/;
+  let cleaned = areaName.replace(uuidPattern, '');
+
+  // Pattern 2: Sometimes there might be a separator or other patterns
+  // If we detect common separators, try to split and take the first part
+  if (cleaned === areaName) {
+    // If the UUID pattern didn't match, try looking for other patterns
+    // Look for transitions from letters to a long string of mixed case
+    const transitionPattern = /^([A-Za-z\s]+)[A-Z0-9a-z]{15,}$/;
+    const match = areaName.match(transitionPattern);
+    if (match) {
+      cleaned = match[1];
+    }
+  }
+
+  // Clean up any trailing whitespace or special characters
+  cleaned = cleaned.trim();
+
+  // Return undefined if the result is empty
+  return cleaned.length > 0 ? cleaned : undefined;
 }
 
 function promptForUuid(project: ThingsProject): boolean {
