@@ -5,13 +5,16 @@ code in this repository.
 
 ## Project Overview
 
-NocoDB-Things Sync CLI - A Deno TypeScript application that synchronizes data
-between NocoDB (database) and Things 3 (macOS task manager).
+NocoDB-Things Project Sync - A Deno TypeScript CLI that synchronizes projects
+from Things 3 (macOS task manager) to NocoDB (database platform).
 
 ## Commands
 
 - **Run development mode**: `deno task dev`
 - **Run CLI**: `deno task start [command] [options]`
+- **Sync projects**: `deno task start` or `deno task start sync`
+- **List projects**: `deno task start list-projects`
+- **Configure mappings**: `deno task start map`
 - **Run tests**: `deno task test`
 - **Format code**: `deno task fmt`
 - **Lint code**: `deno task lint`
@@ -24,9 +27,7 @@ concerns:
 - **CLI Layer** (`src/cli/`): Command parsing and user interaction using Deno's
   standard library
 - **API Layer** (`src/api/`): Abstractions for NocoDB REST API and Things
-  AppleScript/URL scheme integration
-- **Sync Engine** (`src/sync/`): Core synchronization logic with bidirectional
-  sync, conflict resolution, and data mapping
+  AppleScript integration
 - **Configuration** (`src/config/`): Persistent configuration management stored
   in `~/.nocodb-things/`
 - **State Management** (`src/utils/state.ts`): Tracks sync history and
@@ -42,16 +43,17 @@ concerns:
 
 ### Things App Integration
 
-- Primary: URL scheme (`things:///`) for creating tasks
-- Secondary: AppleScript for reading tasks and updates
+- AppleScript for reading projects and their properties
 - No direct API, requires creative workarounds
+- Extracts project title, UUID, notes, and area
 
 ### Sync Strategy
 
-- Timestamp-based change detection
-- Three modes: push (to NocoDB), pull (from NocoDB), sync (bidirectional)
-- Conflict resolution with configurable strategies
-- Field mapping system for schema flexibility
+- One-way sync: Things projects → NocoDB records
+- Projects matched by title
+- Automatic UUID tracking
+- Field mapping system for flexible schema alignment
+- Visual mapping diagram in map command
 
 ## Testing Approach
 

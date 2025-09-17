@@ -2,7 +2,6 @@
 
 import { parseArgs } from "@std/cli/parse-args";
 import { bold, red } from "@std/fmt/colors";
-import { syncCommand } from "./commands/sync.ts";
 import { configCommand } from "./commands/config.ts";
 import { statusCommand } from "./commands/status.ts";
 import { testCommand } from "./commands/test.ts";
@@ -10,22 +9,21 @@ import { mapCommand } from "./commands/map.ts";
 import { projectSyncCommand } from "./commands/project-sync.ts";
 import { listProjectsCommand } from "./commands/list-projects.ts";
 
-const VERSION = "0.1.0";
+const VERSION = "0.2.0";
 
 function printHelp(): void {
   console.log(`
-${bold("NocoDB-Things Sync CLI")} v${VERSION}
+${bold("NocoDB-Things Project Sync")} v${VERSION}
 
 ${bold("USAGE:")}
-  nocodb-things <command> [options]
+  nocodb-things [command] [options]
 
 ${bold("COMMANDS:")}
-  sync              Synchronize data between NocoDB and Things
-  project-sync      Synchronize Things projects with NocoDB records
+  sync              Synchronize Things projects to NocoDB (default)
   list-projects     List all projects found in Things
+  map               Setup field mappings for project synchronization
   config            Configure sync settings
   status            Show current sync status
-  map               Setup field mappings between NocoDB and Things
   test              Test connections to NocoDB and Things
 
 ${bold("GLOBAL OPTIONS:")}
@@ -34,12 +32,11 @@ ${bold("GLOBAL OPTIONS:")}
   --verbose         Enable verbose logging
 
 ${bold("EXAMPLES:")}
-  nocodb-things sync                    # Run sync with default settings
-  nocodb-things sync --full             # Force full synchronization
-  nocodb-things project-sync            # Sync Things projects to NocoDB
+  nocodb-things                         # Sync projects (default action)
+  nocodb-things sync                    # Sync Things projects to NocoDB
   nocodb-things list-projects           # List all Things projects
+  nocodb-things map                     # Configure project field mappings
   nocodb-things config --set            # Interactive configuration setup
-  nocodb-things status                  # Check sync status and last run
   nocodb-things test                    # Test API connections
 
 For more information on a specific command, use:
@@ -70,20 +67,19 @@ async function main(): Promise<void> {
     Deno.exit(0);
   }
 
-  if (args.help || args._.length === 0) {
+  if (args.help) {
     printHelp();
     Deno.exit(0);
   }
 
-  const command = String(args._[0]);
-  const commandArgs = args._.slice(1).map(String);
+  // Default to 'sync' command if no command provided
+  const command = args._.length === 0 ? "sync" : String(args._[0]);
+  const commandArgs = args._.length === 0 ? [] : args._.slice(1).map(String);
 
   try {
     switch (command) {
       case "sync":
-        await syncCommand(commandArgs, args);
-        break;
-      case "project-sync":
+      case "project-sync": // Keep for backwards compatibility
         await projectSyncCommand(commandArgs, args);
         break;
       case "list-projects":

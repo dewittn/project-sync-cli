@@ -1,16 +1,16 @@
-# NocoDB-Things Sync CLI
+# NocoDB-Things Project Sync
 
-A Deno-based CLI tool to synchronize data between NocoDB and the Things macOS
-app.
+A Deno-based CLI tool to synchronize projects from Things 3 (macOS task manager)
+to NocoDB (database platform).
 
 ## Features
 
-- **Bidirectional sync** between NocoDB tables and Things tasks
+- **One-way sync** from Things projects to NocoDB records
+- **Automatic UUID tracking** for project identification
 - **Flexible field mapping** to match your NocoDB schema
-- **Conflict resolution** for handling simultaneous edits
-- **Multiple sync modes**: push, pull, or bidirectional sync
+- **Visual mapping diagram** for easy understanding
 - **Dry-run mode** to preview changes before applying
-- **Comprehensive logging** and status tracking
+- **Project listing** to view all Things projects
 
 ## Installation
 
@@ -47,20 +47,17 @@ You'll be prompted for:
 ### Basic Commands
 
 ```bash
-# Run a sync
+# Sync projects (default command)
+deno task start
+
+# Explicitly sync projects
 deno task start sync
 
-# Full re-sync (ignore timestamps)
-deno task start sync --full
+# List all Things projects
+deno task start list-projects
 
 # Dry run to preview changes
 deno task start sync --dry-run
-
-# Push only to NocoDB
-deno task start sync --direction push
-
-# Pull only from NocoDB
-deno task start sync --direction pull
 ```
 
 ### Configuration Management
@@ -79,16 +76,16 @@ deno task start config --reset
 ### Field Mapping
 
 ```bash
-# Interactive field mapping setup
+# Interactive project field mapping setup
 deno task start map
 
-# List current mappings
+# View visual field mapping diagram
 deno task start map --list
 
 # Add a specific mapping
-deno task start map --add "priority:tags"
+deno task start map --add "Goal:notes"
 
-# Auto-generate mappings
+# Auto-generate project mappings
 deno task start map --auto
 ```
 
@@ -110,26 +107,27 @@ deno task start status --detailed
 
 ## Field Mappings
 
-The tool supports mapping between NocoDB fields and Things properties:
+The tool maps Things project properties to NocoDB fields:
 
-### Things Properties
+### Things Project Properties
 
-- `title` - Task title
-- `notes` - Task description
-- `when` - When to do (today, tomorrow, etc.)
-- `deadline` - Hard deadline date
-- `tags` - Task tags
-- `checklist-items` - Checklist items
-- `completed` - Completion status
-- `project` - Project assignment
-- `area` - Area assignment
+- `title` - Project title
+- `id` - Project unique identifier (UUID)
+- `notes` - Project notes/goals
+- `area` - Project area
 
-### Default Mappings
+### Default NocoDB Field Mappings
 
-- `title` → `title`
-- `notes/description` → `notes`
-- `completed/status` → `completed`
-- `due_date` → `when`
+```
+  Things Project          NocoDB Record
+  ┌──────────────┐      ┌──────────────┐
+  │ • title      │ ────>│ Title        │
+  │              │      │ Project Name │
+  │ • id (UUID)  │ ────>│ Things UUID  │
+  │ • notes      │ ────>│ Goal         │
+  │ • area       │ ────>│ Area         │
+  └──────────────┘      └──────────────┘
+```
 
 ## Development
 

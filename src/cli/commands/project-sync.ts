@@ -38,7 +38,7 @@ export async function projectSyncCommand(
 
   const nocodb = new NocoDBClient(config);
 
-  console.log(bold("Starting project synchronization..."));
+  console.log(bold("Syncing Things projects to NocoDB..."));
 
   try {
     // Get all projects from Things
@@ -164,12 +164,12 @@ export async function projectSyncCommand(
       synced++;
     }
 
-    console.log(green(bold("✓ Project sync completed successfully!")));
+    console.log(green(bold("✓ Sync completed successfully!")));
     console.log(`  Projects processed: ${synced}`);
     console.log(`  Records created: ${created}`);
     console.log(`  Records updated: ${updated}`);
   } catch (error) {
-    throw new Error(`Project sync failed: ${error.message}`);
+    throw new Error(`Sync failed: ${error.message}`);
   }
 }
 
@@ -296,25 +296,26 @@ function promptForUuid(project: ThingsProject): boolean {
 
 function printProjectSyncHelp(): void {
   console.log(`
-${bold("PROJECT SYNC COMMAND")}
-Synchronize Things projects with NocoDB records
+${bold("SYNC COMMAND")}
+Synchronize Things projects to NocoDB
 
 ${bold("USAGE:")}
-  nocodb-things project-sync [options]
+  nocodb-things sync [options]
 
 ${bold("OPTIONS:")}
   -h, --help              Show this help message
   --dry-run               Preview changes without applying them
 
 ${bold("BEHAVIOR:")}
-  • Projects in Things get matched to NocoDB records by title
-  • If a match is found, the Things UUID field is updated
-  • If no match is found, you'll be prompted to create a new record
-  • Project notes update the Goal field in NocoDB
-  • Prompts are skippable (press Enter or 'n' to skip, 's' to skip all)
+  • One-way sync: Things projects → NocoDB records
+  • Projects matched by title
+  • Updates Things UUID in NocoDB
+  • Creates new records for unmatched projects
+  • Project notes update the Goal field
 
 ${bold("EXAMPLES:")}
-  nocodb-things project-sync                # Sync all projects
-  nocodb-things project-sync --dry-run      # Preview changes only
+  nocodb-things                  # Sync all projects (default)
+  nocodb-things sync             # Sync all projects
+  nocodb-things sync --dry-run   # Preview changes only
 `);
 }

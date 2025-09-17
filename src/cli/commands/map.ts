@@ -25,7 +25,7 @@ export async function mapCommand(
   const config = await ConfigManager.load();
 
   if (flags.list) {
-    await listMappings(config);
+    listMappings(config);
     return;
   }
 
@@ -53,29 +53,94 @@ export async function mapCommand(
   await interactiveMappingSetup(config);
 }
 
-async function listMappings(config: ConfigManager): Promise<void> {
-  const mappings = config.get("fieldMappings") || {};
+function listMappings(config: ConfigManager): void {
+  const customMappings = config.get("fieldMappings") || {};
 
-  console.log(bold("\nField Mappings"));
-  console.log("─".repeat(50));
+  // Default project field mappings
+  const defaultMappings: Record<string, string> = {
+    "Title": "title",
+    "Project Name": "title",
+    "Things UUID": "id",
+    "Goal": "notes",
+    "Area": "area",
+  };
 
-  if (Object.keys(mappings).length === 0) {
-    console.log(yellow("No field mappings configured."));
-    console.log("Run 'nocodb-things map' to set up mappings.");
-    return;
+  console.log(bold("\n🗺️  Project Field Mapping"));
+  console.log("─".repeat(60));
+  console.log();
+
+  // Use custom mappings if they exist, otherwise use defaults
+  const effectiveMappings: Record<string, string> = {};
+
+  // First add defaults
+  for (const [field, value] of Object.entries(defaultMappings)) {
+    effectiveMappings[field] = value;
   }
 
-  console.log(bold("NocoDB Field → Things Property"));
-  for (const [nocodbField, thingsProperty] of Object.entries(mappings)) {
-    console.log(`  ${nocodbField} → ${thingsProperty}`);
+  // Override with custom mappings (these take precedence)
+  for (const [field, value] of Object.entries(customMappings)) {
+    effectiveMappings[field] = value;
   }
 
-  // Show default mappings
-  console.log(bold("\nDefault Mappings (built-in):"));
-  console.log("  title → title");
-  console.log("  notes → notes");
-  console.log("  completed → completed");
-  console.log("  due_date → when");
+  // Group NocoDB fields by Things property
+  const thingsToNocoDB: Record<string, string[]> = {};
+  for (const [nocodbField, thingsProperty] of Object.entries(effectiveMappings)) {
+    if (!thingsToNocoDB[thingsProperty]) {
+      thingsToNocoDB[thingsProperty] = [];
+    }
+    thingsToNocoDB[thingsProperty].push(nocodbField);
+  }
+
+  // Build dynamic visual representation
+  console.log(bold("  Things Project          NocoDB Record"));
+  console.log("  ┌──────────────┐      ┌──────────────┐");
+
+  const thingsProperties = ["title", "id", "notes", "area"];
+
+  for (const prop of thingsProperties) {
+    const nocodbFields = thingsToNocoDB[prop] || [];
+    if (nocodbFields.length > 0) {
+      // Format Things property display
+      const thingsDisplay = prop === "id" ? `${prop} (UUID)` : prop;
+      const firstField = nocodbFields[0];
+      console.log(`  │ • ${thingsDisplay.padEnd(10)} │ ────>│ ${firstField.padEnd(12)} │`);
+
+      // Show additional mapped fields
+      for (let i = 1; i < nocodbFields.length; i++) {
+        console.log(`  │              │      │ ${nocodbFields[i].padEnd(12)} │`);
+      }
+    }
+  }
+
+  // Show any unmapped Things properties
+  for (const prop of thingsProperties) {
+    if (!thingsToNocoDB[prop]) {
+      const thingsDisplay = prop === "id" ? `${prop} (UUID)` : prop;
+      console.log(`  │ • ${thingsDisplay.padEnd(10)} │      │              │`);
+    }
+  }
+
+  console.log("  └──────────────┘      └──────────────┘");
+  console.log();
+  console.log("─".repeat(60));
+
+  // Show configured mappings
+  console.log(bold("\nConfigured Mappings:"));
+
+  if (Object.keys(effectiveMappings).length === 0) {
+    console.log(yellow("  No field mappings configured."));
+    console.log("  Run 'nocodb-things map' to set up mappings.");
+  } else {
+    for (const [nocodbField, thingsProperty] of Object.entries(effectiveMappings)) {
+      const isCustom = customMappings[nocodbField] !== undefined;
+      const isDefault = !isCustom && defaultMappings[nocodbField] === thingsProperty;
+      const marker = isCustom ? "(custom)" : isDefault ? "(default)" : "";
+      console.log(`  ${nocodbField.padEnd(20)} → ${thingsProperty.padEnd(15)} ${marker ? green(marker) : ""}`);
+    }
+  }
+
+  console.log();
+  console.log("Sync direction: Things → NocoDB (one-way)");
 }
 
 async function addMapping(
@@ -100,6 +165,7 @@ async function addMapping(
   await config.save();
 
   console.log(green(`✓ Added mapping: ${nocodbField} → ${thingsProperty}`));
+  listMappings(config);
 }
 
 async function removeMapping(
@@ -118,6 +184,7 @@ async function removeMapping(
   await config.save();
 
   console.log(green(`✓ Removed mapping for: ${nocodbField}`));
+  listMappings(config);
 }
 
 async function resetMappings(config: ConfigManager): Promise<void> {
@@ -127,85 +194,67 @@ async function resetMappings(config: ConfigManager): Promise<void> {
     config.set("fieldMappings", {});
     await config.save();
     console.log(green("✓ Field mappings reset successfully!"));
+    listMappings(config);
   } else {
     console.log("Reset cancelled.");
   }
 }
 
 async function autoGenerateMappings(config: ConfigManager): Promise<void> {
-  console.log(bold("Auto-generating field mappings..."));
+  console.log(bold("Auto-generating project field mappings..."));
 
-  // Common mapping patterns
-  const commonMappings: Record<string, string> = {
-    title: "title",
-    name: "title",
-    task: "title",
-    description: "notes",
-    notes: "notes",
-    content: "notes",
-    completed: "completed",
-    done: "completed",
-    status: "completed",
-    due_date: "when",
-    due: "when",
-    deadline: "when",
-    tags: "tags",
-    project: "project",
-    priority: "tags",
-    checklist: "checklist-items",
+  // Project-specific field mappings
+  const projectMappings: Record<string, string> = {
+    "Title": "title",
+    "Project Name": "title",
+    "project_name": "title",
+    "Things UUID": "id",
+    "things_uuid": "id",
+    "UUID": "id",
+    "Goal": "notes",
+    "goal": "notes",
+    "Notes": "notes",
+    "notes": "notes",
+    "Description": "notes",
+    "Area": "area",
+    "area": "area",
   };
 
-  const mappings: Record<string, string> = {};
-
-  // TODO: Fetch actual fields from NocoDB table
-  console.log(yellow("Note: Auto-mapping requires a configured NocoDB table."));
-  console.log("Using common field patterns for now...");
-
-  // For demonstration, use common patterns
-  for (const [field, property] of Object.entries(commonMappings)) {
-    mappings[field] = property;
-  }
-
-  config.set("fieldMappings", mappings);
+  config.set("fieldMappings", projectMappings);
   await config.save();
 
-  console.log(green("✓ Auto-generated mappings saved!"));
-  await listMappings(config);
+  console.log(green("✓ Project field mappings generated!"));
+  listMappings(config);
 }
 
 async function interactiveMappingSetup(config: ConfigManager): Promise<void> {
-  console.log(bold("Interactive Field Mapping Setup"));
+  console.log(bold("Interactive Project Field Mapping Setup"));
   console.log("─".repeat(50));
-  console.log("Map NocoDB fields to Things properties.");
+  console.log("Map NocoDB fields to Things project properties.");
   console.log("Press Enter to skip a field.\n");
 
-  const thingsProperties = [
-    "title",
-    "notes",
-    "when",
-    "deadline",
-    "tags",
-    "checklist-items",
-    "completed",
-    "project",
-    "area",
+  const thingsProjectProperties = [
+    "title",    // Project title
+    "id",       // Project UUID
+    "notes",    // Project notes/goals
+    "area",     // Project area
   ];
 
   const mappings = config.get("fieldMappings") || {};
 
-  // TODO: Fetch actual fields from NocoDB
+  // Common NocoDB field names for projects
   const nocodbFields = [
-    "title",
-    "description",
-    "due_date",
-    "status",
-    "priority",
-    "tags",
-    "project_id",
+    "Title",
+    "Project Name",
+    "Things UUID",
+    "Goal",
+    "Area",
+    "Description",
+    "Notes",
   ];
 
-  console.log(bold("Available Things properties:"));
-  console.log(thingsProperties.join(", "));
+  console.log(bold("Available Things project properties:"));
+  console.log(thingsProjectProperties.map(p => `  • ${p}`).join("\n"));
   console.log();
 
   for (const field of nocodbFields) {
@@ -216,7 +265,7 @@ async function interactiveMappingSetup(config: ConfigManager): Promise<void> {
 
     const input = prompt(prompt_text);
 
-    if (input && thingsProperties.includes(input)) {
+    if (input && thingsProjectProperties.includes(input)) {
       mappings[field] = input;
       console.log(green(`  ✓ ${field} → ${input}`));
     } else if (input === "") {
@@ -233,41 +282,44 @@ async function interactiveMappingSetup(config: ConfigManager): Promise<void> {
   config.set("fieldMappings", mappings);
   await config.save();
 
-  console.log(green("\n✓ Field mappings saved successfully!"));
+  console.log(green("\n✓ Project field mappings saved successfully!"));
+  listMappings(config);
 }
 
 function printMapHelp(): void {
   console.log(`
 ${bold("MAP COMMAND")}
-Setup field mappings between NocoDB and Things
+Setup project field mappings for Things to NocoDB sync
 
 ${bold("USAGE:")}
   nocodb-things map [options]
 
 ${bold("OPTIONS:")}
   -h, --help              Show this help message
-  -l, --list              List current field mappings
+  -l, --list              Display field mappings with visual diagram
   -a, --add <mapping>     Add a field mapping (format: nocodb_field:things_property)
   -r, --remove <field>    Remove a field mapping
-  --reset                 Reset all field mappings
-  --auto                  Auto-generate mappings based on field names
+  --reset                 Reset all field mappings to defaults
+  --auto                  Auto-generate project mappings
 
-${bold("THINGS PROPERTIES:")}
-  title           Task title
-  notes           Task notes/description
-  when            When to do (today, evening, tomorrow, etc.)
-  deadline        Hard deadline date
-  tags            Task tags
-  checklist-items Checklist items
-  completed       Completion status
-  project         Project assignment
-  area            Area assignment
+${bold("THINGS PROJECT PROPERTIES:")}
+  title           Project title
+  id              Project unique identifier (UUID)
+  notes           Project notes/goals
+  area            Project area
+
+${bold("DEFAULT NOCODB FIELDS:")}
+  Title           Maps to project title
+  Project Name    Maps to project title
+  Things UUID     Maps to project id
+  Goal            Maps to project notes
+  Area            Maps to project area
 
 ${bold("EXAMPLES:")}
   nocodb-things map                           # Interactive setup
-  nocodb-things map --list                    # Show current mappings
-  nocodb-things map --add "priority:tags"     # Add single mapping
-  nocodb-things map --remove priority         # Remove mapping
+  nocodb-things map --list                    # Show visual field mapping
+  nocodb-things map --add "Goal:notes"        # Map Goal field to notes
+  nocodb-things map --remove Goal             # Remove Goal mapping
   nocodb-things map --auto                    # Auto-generate mappings
 `);
 }

@@ -23,7 +23,7 @@ export async function configCommand(
   const config = await ConfigManager.load();
 
   if (flags.show) {
-    await showConfig(config);
+    showConfig(config);
     return;
   }
 
@@ -43,7 +43,7 @@ export async function configCommand(
   printConfigHelp();
 }
 
-async function showConfig(config: ConfigManager): Promise<void> {
+function showConfig(config: ConfigManager): void {
   const currentConfig = config.getAll();
 
   console.log(bold("\nCurrent Configuration:"));
