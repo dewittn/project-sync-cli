@@ -40,6 +40,31 @@ export async function projectSyncCommand(
 
   console.log(bold("Syncing Things projects to NocoDB..."));
 
+  // Get field mappings from config
+  const customMappings = config.get("fieldMappings") || {};
+  const defaultMappings: Record<string, string> = {
+    "Title": "title",
+    "Project Name": "title",
+    "Things UUID": "id",
+    "Goal": "notes",
+    "Area": "area",
+  };
+
+  // Merge custom and default mappings (custom takes precedence)
+  const fieldMappings = { ...defaultMappings, ...customMappings };
+
+  // Build reverse mappings: Things property -> NocoDB field names
+  const uuidFields: string[] = [];
+  const titleFields: string[] = [];
+
+  for (const [nocodbField, thingsProperty] of Object.entries(fieldMappings)) {
+    if (thingsProperty === "id") {
+      uuidFields.push(nocodbField);
+    } else if (thingsProperty === "title") {
+      titleFields.push(nocodbField);
+    }
+  }
+
   try {
     // Get all projects from Things
     const thingsProjects = await getThingsProjects();
@@ -68,15 +93,42 @@ export async function projectSyncCommand(
         console.log(`Processing project: ${project.title}`);
       }
 
-      // Debug mode: show search criteria before matching
-      if (flags.debug) {
-        printDebugSearchCriteria(project.title, nocodbRecords.length);
+      // Two-step search: First by UUID, then by Title
+      let matchingRecord: NocoDBRecord | undefined;
+
+      // Step 1: Search by Things UUID (primary method)
+      if (flags.debug && uuidFields.length > 0) {
+        printDebugSearchCriteria(
+          "uuid",
+          project.id,
+          uuidFields,
+          nocodbRecords.length,
+        );
       }
 
-      // Find matching NocoDB record by title
-      const matchingRecord = nocodbRecords.find((record: NocoDBRecord) =>
-        record.Title === project.title || record.title === project.title
-      );
+      if (uuidFields.length > 0) {
+        matchingRecord = nocodbRecords.find((record: NocoDBRecord) => {
+          return uuidFields.some((field) => record[field] === project.id);
+        });
+      }
+
+      // Step 2: If no UUID match, search by Title (fallback)
+      if (!matchingRecord) {
+        if (flags.debug && titleFields.length > 0) {
+          printDebugSearchCriteria(
+            "title",
+            project.title,
+            titleFields,
+            nocodbRecords.length,
+          );
+        }
+
+        if (titleFields.length > 0) {
+          matchingRecord = nocodbRecords.find((record: NocoDBRecord) => {
+            return titleFields.some((field) => record[field] === project.title);
+          });
+        }
+      }
 
       // Debug mode: show matched record
       if (flags.debug) {
@@ -216,7 +268,8 @@ export async function projectSyncCommand(
     console.log(`  Records created: ${created}`);
     console.log(`  Records updated: ${updated}`);
   } catch (error) {
-    throw new Error(`Sync failed: ${error.message}`);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    throw new Error(`Sync failed: ${errorMessage}`);
   }
 }
 
@@ -381,13 +434,21 @@ function printDebugSyncData(data: Partial<NocoDBRecord>): void {
 }
 
 function printDebugSearchCriteria(
-  projectTitle: string,
+  searchType: "uuid" | "title",
+  searchValue: string,
+  fields: string[],
   totalRecords: number,
 ): void {
   console.log(cyan(bold("\n🔎 Searching NocoDB for Matching Record:")));
-  console.log(cyan(`  Search criteria: Title field equals "${projectTitle}"`));
+  if (searchType === "uuid") {
+    console.log(cyan(`  Step 1: Searching by Things UUID = "${searchValue}"`));
+  } else {
+    console.log(
+      cyan(`  Step 2: No UUID match, searching by Title = "${searchValue}"`),
+    );
+  }
   console.log(
-    cyan(`  Checking fields: record.Title OR record.title (case-sensitive)`),
+    cyan(`  Checking fields: ${fields.map((f) => `record.${f}`).join(" OR ")}`),
   );
   console.log(cyan(`  Total records to search: ${totalRecords}`));
 }
@@ -432,15 +493,17 @@ ${bold("OPTIONS:")}
 
 ${bold("BEHAVIOR:")}
   • One-way sync: Things projects → NocoDB records
-  • Projects matched by title
-  • Updates Things UUID in NocoDB
+  • Two-step matching: First by Things UUID, then by Title (fallback)
+  • Uses field mappings from config for flexible field names
+  • Updates Things UUID in NocoDB records
   • Creates new records for unmatched projects
   • Project notes update the Goal field
 
 ${bold("DEBUG MODE:")}
   • Process one project at a time with confirmation prompts
   • Display Things project data before sync
-  • Display NocoDB search criteria and matching process
+  • Display two-step search process (UUID → Title)
+  • Show which NocoDB fields are being checked
   • Display matched NocoDB record (if found)
   • Display data being sent to NocoDB
   • Display full HTTP response from NocoDB
