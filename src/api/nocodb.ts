@@ -392,10 +392,9 @@ export class NocoDBClient {
 
       // Handle different value types appropriately
       if (typeof value === "string") {
-        // Only include non-empty strings
-        if (value.trim() !== "") {
-          cleaned[key] = value.trim();
-        }
+        // Include all strings, even empty ones (to allow clearing fields)
+        // Just trim whitespace from non-empty strings
+        cleaned[key] = value.trim();
       } else if (typeof value === "number") {
         cleaned[key] = value;
       } else if (typeof value === "boolean") {

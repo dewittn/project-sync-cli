@@ -11,7 +11,7 @@ import { Input, Select } from "@cliffy/prompt";
 export interface ThingsProject {
   id: string;
   title: string;
-  notes?: string;
+  notes: string;
   area?: string;
 }
 
@@ -253,17 +253,16 @@ export async function projectSyncCommand(
         needsUpdate = true;
 
         // Always update Goal field
-        const goalValue = project.notes || "";
         if (matchingRecord["Goal"] !== undefined) {
-          updates["Goal"] = goalValue;
+          updates["Goal"] = project.notes;
         } else if (matchingRecord["goal"] !== undefined) {
-          updates["goal"] = goalValue;
+          updates["goal"] = project.notes;
         } else if (matchingRecord["Notes"] !== undefined) {
-          updates["Notes"] = goalValue;
+          updates["Notes"] = project.notes;
         } else if (matchingRecord["notes"] !== undefined) {
-          updates["notes"] = goalValue;
+          updates["notes"] = project.notes;
         } else {
-          updates["Goal"] = goalValue;
+          updates["Goal"] = project.notes;
         }
         needsUpdate = true;
 
@@ -354,17 +353,16 @@ export async function projectSyncCommand(
               }
 
               // Update Goal field
-              const goalValue = project.notes || "";
               if (selectedRecord["Goal"] !== undefined) {
-                updates["Goal"] = goalValue;
+                updates["Goal"] = project.notes;
               } else if (selectedRecord["goal"] !== undefined) {
-                updates["goal"] = goalValue;
+                updates["goal"] = project.notes;
               } else if (selectedRecord["Notes"] !== undefined) {
-                updates["Notes"] = goalValue;
+                updates["Notes"] = project.notes;
               } else if (selectedRecord["notes"] !== undefined) {
-                updates["notes"] = goalValue;
+                updates["notes"] = project.notes;
               } else {
-                updates["Goal"] = goalValue;
+                updates["Goal"] = project.notes;
               }
 
               // Update Area field if available
@@ -444,17 +442,16 @@ export async function projectSyncCommand(
             }
 
             // Update Goal field
-            const goalValue = project.notes || "";
             if (selectedRecord["Goal"] !== undefined) {
-              updates["Goal"] = goalValue;
+              updates["Goal"] = project.notes;
             } else if (selectedRecord["goal"] !== undefined) {
-              updates["goal"] = goalValue;
+              updates["goal"] = project.notes;
             } else if (selectedRecord["Notes"] !== undefined) {
-              updates["Notes"] = goalValue;
+              updates["Notes"] = project.notes;
             } else if (selectedRecord["notes"] !== undefined) {
-              updates["notes"] = goalValue;
+              updates["notes"] = project.notes;
             } else {
-              updates["Goal"] = goalValue;
+              updates["Goal"] = project.notes;
             }
 
             // Update Area field if available
@@ -500,7 +497,7 @@ export async function projectSyncCommand(
           Title: project.title,
           "Project Name": project.title,
           "Things UUID": project.id,
-          Goal: project.notes || "",
+          Goal: project.notes,
         };
 
         if (project.area) {
@@ -649,7 +646,7 @@ async function getThingsProjects(): Promise<ThingsProject[]> {
         const project: ThingsProject = {
           id: id || "",
           title: title || "",
-          notes: notes || undefined,
+          notes: notes || "",
           area: cleanAreaName(area) || undefined,
         };
         if (project.id && project.title) {
@@ -896,7 +893,7 @@ function printDebugThingsProject(project: ThingsProject): void {
   console.log(cyan(bold("\n📋 Things Project Data:")));
   console.log(cyan(`  Title: ${project.title}`));
   console.log(cyan(`  ID: ${project.id}`));
-  console.log(cyan(`  Notes: ${project.notes || "(none)"}`));
+  console.log(cyan(`  Notes: ${project.notes || "(empty)"}`));
   console.log(cyan(`  Area: ${project.area || "(none)"}`));
 }
 
