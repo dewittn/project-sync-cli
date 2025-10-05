@@ -119,14 +119,14 @@ The tool maps Things project properties to NocoDB fields:
 ### Default NocoDB Field Mappings
 
 ```
-  Things Project          NocoDB Record
-  ┌──────────────┐      ┌──────────────┐
-  │ • title      │ ────>│ Title        │
-  │              │      │ Project Name │
-  │ • id (UUID)  │ ────>│ Things UUID  │
-  │ • notes      │ ────>│ Goal         │
-  │ • area       │ ────>│ Area         │
-  └──────────────┘      └──────────────┘
+Things Project          NocoDB Record
+┌──────────────┐      ┌──────────────┐
+│ • title      │ ────>│ Title        │
+│              │      │ Project Name │
+│ • id (UUID)  │ ────>│ Things UUID  │
+│ • notes      │ ────>│ Goal         │
+│ • area       │ ────>│ Area         │
+└──────────────┘      └──────────────┘
 ```
 
 ## Development

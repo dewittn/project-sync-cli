@@ -8,7 +8,11 @@
       "Bash(deno lint:*)",
       "Bash(git add:*)",
       "Bash(git commit:*)",
-      "WebFetch(domain:data-apis-v2.nocodb.com)"
+      "WebFetch(domain:data-apis-v2.nocodb.com)",
+      "Bash(osascript:*)",
+      "WebFetch(domain:github.com)",
+      "Read(//Users/dewittn/.nocodb-things/**)",
+      "Bash(cat:*)"
     ],
     "deny": [],
     "ask": []

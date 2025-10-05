@@ -129,7 +129,8 @@ export async function projectSyncCommand(
         }
 
         if (needsUpdate) {
-          await nocodb.updateRecord(matchingRecord.Id, updates);
+          const recordId = await nocodb.getRecordId(matchingRecord);
+          await nocodb.updateRecord(recordId, updates);
           console.log(green(`✓ Updated record for project: ${project.title}`));
           updated++;
         } else if (globalFlags.verbose) {

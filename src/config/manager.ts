@@ -4,11 +4,13 @@ import { join } from "@std/path/join";
 export interface Config {
   nocodbUrl?: string;
   nocodbToken?: string;
-  projectName?: string;
+  projectName?: string; // NocoDB Base name (also called "Project" in NocoDB UI)
   tableName?: string;
-  syncDirection?: "push" | "pull" | "sync";
-  autoSync?: boolean;
-  syncInterval?: number;
+  baseId?: string; // NocoDB Base ID
+  tableId?: string; // NocoDB Table ID
+  syncDirection?: "push" | "pull" | "sync"; // Deprecated, kept for backwards compatibility
+  autoSync?: boolean; // Deprecated, kept for backwards compatibility
+  syncInterval?: number; // Deprecated, kept for backwards compatibility
   fieldMappings?: Record<string, string>;
   lastSync?: string;
 }

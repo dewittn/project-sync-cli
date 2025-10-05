@@ -1,13 +1,16 @@
 import { parseArgs } from "@std/cli/parse-args";
-import { bold, green, yellow } from "@std/fmt/colors";
+import { bold, green, red, yellow } from "@std/fmt/colors";
 import { ConfigManager } from "../../config/manager.ts";
+
+// Valid Things project properties
+const VALID_THINGS_PROPERTIES = ["title", "id", "notes", "area"] as const;
 
 export async function mapCommand(
   args: string[],
   _globalFlags: Record<string, unknown>,
 ): Promise<void> {
   const flags = parseArgs(args, {
-    boolean: ["help", "list", "reset", "auto"],
+    boolean: ["help", "list", "reset", "auto", "clean"],
     string: ["add", "remove"],
     alias: {
       h: "help",
@@ -49,6 +52,11 @@ export async function mapCommand(
     return;
   }
 
+  if (flags.clean) {
+    await cleanInvalidMappings(config);
+    return;
+  }
+
   // Interactive mapping setup
   await interactiveMappingSetup(config);
 }
@@ -69,6 +77,22 @@ function listMappings(config: ConfigManager): void {
   console.log("─".repeat(60));
   console.log();
 
+  // Separate valid and invalid custom mappings
+  const validCustomMappings: Record<string, string> = {};
+  const invalidMappings: Record<string, string> = {};
+
+  for (const [field, value] of Object.entries(customMappings)) {
+    if (
+      VALID_THINGS_PROPERTIES.includes(
+        value as typeof VALID_THINGS_PROPERTIES[number],
+      )
+    ) {
+      validCustomMappings[field] = value;
+    } else {
+      invalidMappings[field] = value;
+    }
+  }
+
   // Use custom mappings if they exist, otherwise use defaults
   const effectiveMappings: Record<string, string> = {};
 
@@ -77,14 +101,16 @@ function listMappings(config: ConfigManager): void {
     effectiveMappings[field] = value;
   }
 
-  // Override with custom mappings (these take precedence)
-  for (const [field, value] of Object.entries(customMappings)) {
+  // Override with valid custom mappings only (these take precedence)
+  for (const [field, value] of Object.entries(validCustomMappings)) {
     effectiveMappings[field] = value;
   }
 
   // Group NocoDB fields by Things property
   const thingsToNocoDB: Record<string, string[]> = {};
-  for (const [nocodbField, thingsProperty] of Object.entries(effectiveMappings)) {
+  for (
+    const [nocodbField, thingsProperty] of Object.entries(effectiveMappings)
+  ) {
     if (!thingsToNocoDB[thingsProperty]) {
       thingsToNocoDB[thingsProperty] = [];
     }
@@ -103,11 +129,15 @@ function listMappings(config: ConfigManager): void {
       // Format Things property display
       const thingsDisplay = prop === "id" ? `${prop} (UUID)` : prop;
       const firstField = nocodbFields[0];
-      console.log(`  │ • ${thingsDisplay.padEnd(10)} │ ────>│ ${firstField.padEnd(12)} │`);
+      console.log(
+        `  │ • ${thingsDisplay.padEnd(10)} │ ────>│ ${firstField.padEnd(12)} │`,
+      );
 
       // Show additional mapped fields
       for (let i = 1; i < nocodbFields.length; i++) {
-        console.log(`  │              │      │ ${nocodbFields[i].padEnd(12)} │`);
+        console.log(
+          `  │              │      │ ${nocodbFields[i].padEnd(12)} │`,
+        );
       }
     }
   }
@@ -131,12 +161,48 @@ function listMappings(config: ConfigManager): void {
     console.log(yellow("  No field mappings configured."));
     console.log("  Run 'nocodb-things map' to set up mappings.");
   } else {
-    for (const [nocodbField, thingsProperty] of Object.entries(effectiveMappings)) {
-      const isCustom = customMappings[nocodbField] !== undefined;
-      const isDefault = !isCustom && defaultMappings[nocodbField] === thingsProperty;
+    for (
+      const [nocodbField, thingsProperty] of Object.entries(effectiveMappings)
+    ) {
+      const isCustom = validCustomMappings[nocodbField] !== undefined;
+      const isDefault = !isCustom &&
+        defaultMappings[nocodbField] === thingsProperty;
       const marker = isCustom ? "(custom)" : isDefault ? "(default)" : "";
-      console.log(`  ${nocodbField.padEnd(20)} → ${thingsProperty.padEnd(15)} ${marker ? green(marker) : ""}`);
+      console.log(
+        `  ${nocodbField.padEnd(20)} → ${thingsProperty.padEnd(15)} ${
+          marker ? green(marker) : ""
+        }`,
+      );
     }
+  }
+
+  // Show invalid mappings with warning
+  if (Object.keys(invalidMappings).length > 0) {
+    console.log(bold("\n⚠️  Invalid Mappings (ignored):"));
+    console.log(
+      yellow(
+        "  The following mappings use invalid Things properties and will be ignored:",
+      ),
+    );
+    for (
+      const [nocodbField, thingsProperty] of Object.entries(invalidMappings)
+    ) {
+      console.log(
+        `  ${nocodbField.padEnd(20)} → ${red(thingsProperty.padEnd(15))} ${
+          red("(invalid)")
+        }`,
+      );
+    }
+    console.log(
+      yellow(
+        `\n  Valid Things properties: ${VALID_THINGS_PROPERTIES.join(", ")}`,
+      ),
+    );
+    console.log(
+      yellow(
+        "  Use 'nocodb-things map --remove <field>' to remove invalid mappings.",
+      ),
+    );
   }
 
   console.log();
@@ -153,6 +219,22 @@ async function addMapping(
     console.log(
       yellow(
         "Invalid mapping format. Use: --add 'nocodb_field:things_property'",
+      ),
+    );
+    return;
+  }
+
+  // Validate Things property
+  if (
+    !VALID_THINGS_PROPERTIES.includes(
+      thingsProperty as typeof VALID_THINGS_PROPERTIES[number],
+    )
+  ) {
+    console.log(
+      red(
+        `Invalid Things property: "${thingsProperty}". Valid properties are: ${
+          VALID_THINGS_PROPERTIES.join(", ")
+        }`,
       ),
     );
     return;
@@ -234,10 +316,10 @@ async function interactiveMappingSetup(config: ConfigManager): Promise<void> {
   console.log("Press Enter to skip a field.\n");
 
   const thingsProjectProperties = [
-    "title",    // Project title
-    "id",       // Project UUID
-    "notes",    // Project notes/goals
-    "area",     // Project area
+    "title", // Project title
+    "id", // Project UUID
+    "notes", // Project notes/goals
+    "area", // Project area
   ];
 
   const mappings = config.get("fieldMappings") || {};
@@ -254,7 +336,7 @@ async function interactiveMappingSetup(config: ConfigManager): Promise<void> {
   ];
 
   console.log(bold("Available Things project properties:"));
-  console.log(thingsProjectProperties.map(p => `  • ${p}`).join("\n"));
+  console.log(thingsProjectProperties.map((p) => `  • ${p}`).join("\n"));
   console.log();
 
   for (const field of nocodbFields) {
@@ -286,6 +368,45 @@ async function interactiveMappingSetup(config: ConfigManager): Promise<void> {
   listMappings(config);
 }
 
+async function cleanInvalidMappings(config: ConfigManager): Promise<void> {
+  const mappings = config.get("fieldMappings") || {};
+  const validMappings: Record<string, string> = {};
+  const removedMappings: Record<string, string> = {};
+
+  // Filter out invalid mappings
+  for (const [field, value] of Object.entries(mappings)) {
+    if (
+      VALID_THINGS_PROPERTIES.includes(
+        value as typeof VALID_THINGS_PROPERTIES[number],
+      )
+    ) {
+      validMappings[field] = value;
+    } else {
+      removedMappings[field] = value;
+    }
+  }
+
+  if (Object.keys(removedMappings).length === 0) {
+    console.log(green("✓ No invalid mappings found. Config is clean!"));
+    return;
+  }
+
+  console.log(bold("Removing invalid mappings:"));
+  for (const [field, value] of Object.entries(removedMappings)) {
+    console.log(red(`  - ${field} → ${value}`));
+  }
+
+  config.set("fieldMappings", validMappings);
+  await config.save();
+
+  console.log(
+    green(
+      `\n✓ Removed ${Object.keys(removedMappings).length} invalid mapping(s)!`,
+    ),
+  );
+  listMappings(config);
+}
+
 function printMapHelp(): void {
   console.log(`
 ${bold("MAP COMMAND")}
@@ -301,6 +422,7 @@ ${bold("OPTIONS:")}
   -r, --remove <field>    Remove a field mapping
   --reset                 Reset all field mappings to defaults
   --auto                  Auto-generate project mappings
+  --clean                 Remove invalid mappings from config
 
 ${bold("THINGS PROJECT PROPERTIES:")}
   title           Project title

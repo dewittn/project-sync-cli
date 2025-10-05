@@ -26,6 +26,7 @@ export class NocoDBClient {
   private tableName?: string;
   private baseId?: string;
   private tableId?: string;
+  private primaryKeyField?: string;
 
   constructor(config: ConfigManager) {
     const url = config.get("nocodbUrl");
@@ -88,7 +89,9 @@ export class NocoDBClient {
       } catch (error) {
         return {
           success: false,
-          error: `Failed to resolve table ID: ${error instanceof Error ? error.message : String(error)}`,
+          error: `Failed to resolve table ID: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
         };
       }
     }
@@ -199,8 +202,11 @@ export class NocoDBClient {
       }
 
       // Add debug information about the request
-      errorMessage += `\nRequest URL: ${this.baseUrl}/api/v2/tables/${this.tableId}/records`;
-      errorMessage += `\nRequest payload: ${JSON.stringify(cleanedRecord, null, 2)}`;
+      errorMessage +=
+        `\nRequest URL: ${this.baseUrl}/api/v2/tables/${this.tableId}/records`;
+      errorMessage += `\nRequest payload: ${
+        JSON.stringify(cleanedRecord, null, 2)
+      }`;
 
       throw new Error(errorMessage);
     }
@@ -208,7 +214,9 @@ export class NocoDBClient {
     return await response.json();
   }
 
-  private validateAndCleanRecord(record: Omit<NocoDBRecord, "id">): Omit<NocoDBRecord, "id"> {
+  private validateAndCleanRecord(
+    record: Omit<NocoDBRecord, "id">,
+  ): Omit<NocoDBRecord, "id"> {
     const cleaned: Record<string, unknown> = {};
 
     for (const [key, value] of Object.entries(record)) {
@@ -246,10 +254,11 @@ export class NocoDBClient {
     updates: Partial<NocoDBRecord>,
   ): Promise<NocoDBRecord> {
     await this.ensureTableId();
+    await this.ensurePrimaryKeyField();
 
     // Validate and clean the update data
     const cleanedUpdates = this.validateAndCleanRecord(updates);
-    const payload = [{ Id: id, ...cleanedUpdates }];
+    const payload = [{ [this.primaryKeyField!]: id, ...cleanedUpdates }];
 
     const response = await fetch(
       `${this.baseUrl}/api/v2/tables/${this.tableId}/records`,
@@ -282,7 +291,8 @@ export class NocoDBClient {
       }
 
       // Add debug information about the request
-      errorMessage += `\nRequest URL: ${this.baseUrl}/api/v2/tables/${this.tableId}/records`;
+      errorMessage +=
+        `\nRequest URL: ${this.baseUrl}/api/v2/tables/${this.tableId}/records`;
       errorMessage += `\nRequest payload: ${JSON.stringify(payload, null, 2)}`;
 
       throw new Error(errorMessage);
@@ -294,6 +304,7 @@ export class NocoDBClient {
 
   async deleteRecord(id: string): Promise<void> {
     await this.ensureTableId();
+    await this.ensurePrimaryKeyField();
 
     const response = await fetch(
       `${this.baseUrl}/api/v2/tables/${this.tableId}/records`,
@@ -303,7 +314,7 @@ export class NocoDBClient {
           "xc-token": this.token,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify([{ Id: id }]),
+        body: JSON.stringify([{ [this.primaryKeyField!]: id }]),
       },
     );
 
@@ -356,6 +367,22 @@ export class NocoDBClient {
     return await response.json();
   }
 
+  async getRecordId(record: NocoDBRecord): Promise<string> {
+    await this.ensurePrimaryKeyField();
+
+    const id = record[this.primaryKeyField!];
+
+    if (!id) {
+      throw new Error(
+        `Record does not have a value for primary key field '${this.primaryKeyField}'. Available fields: ${
+          Object.keys(record).join(", ")
+        }`,
+      );
+    }
+
+    return String(id);
+  }
+
   private async ensureTableId(): Promise<void> {
     if (!this.tableId) {
       if (!this.projectName || !this.tableName) {
@@ -365,6 +392,39 @@ export class NocoDBClient {
       }
       await this.resolveIds();
     }
+  }
+
+  private async ensurePrimaryKeyField(): Promise<void> {
+    if (this.primaryKeyField) {
+      return;
+    }
+
+    await this.ensureTableId();
+
+    // Fetch table schema to get primary key field
+    const schema = await this.getTableSchema();
+    const columns = schema.columns as Array<{
+      title: string;
+      column_name?: string;
+      pk?: boolean;
+      pv?: boolean;
+    }>;
+
+    if (!columns || columns.length === 0) {
+      throw new Error("No columns found in table schema");
+    }
+
+    // Find the primary key column
+    const pkColumn = columns.find((col) => col.pk === true);
+
+    if (!pkColumn) {
+      throw new Error(
+        "No primary key found in table. Please ensure your NocoDB table has a primary key defined.",
+      );
+    }
+
+    // Use the title (display name) as the field name for API operations
+    this.primaryKeyField = pkColumn.title;
   }
 
   private async resolveIds(): Promise<void> {

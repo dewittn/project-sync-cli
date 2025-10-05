@@ -8,7 +8,14 @@ export async function configCommand(
 ): Promise<void> {
   const flags = parseArgs(args, {
     boolean: ["help", "set", "show", "reset"],
-    string: ["nocodb-url", "nocodb-token", "project-name", "table-name"],
+    string: [
+      "nocodb-url",
+      "nocodb-token",
+      "base-name",
+      "base-id",
+      "table-name",
+      "table-id",
+    ],
     alias: {
       h: "help",
       s: "set",
@@ -34,7 +41,8 @@ export async function configCommand(
 
   if (
     flags.set || flags["nocodb-url"] || flags["nocodb-token"] ||
-    flags["project-name"] || flags["table-name"]
+    flags["base-name"] || flags["base-id"] || flags["table-name"] ||
+    flags["table-id"]
   ) {
     await setConfig(config, flags);
     return;
@@ -58,33 +66,27 @@ function showConfig(config: ConfigManager): void {
           : "Not set"
       }`,
     );
-    console.log(`Project Name:      ${currentConfig.projectName || "Not set"}`);
+    console.log();
+    console.log(
+      `Base Name:         ${currentConfig.projectName || "Not set"}`,
+    );
+    console.log(`Base ID:           ${currentConfig.baseId || "Not set"}`);
     console.log(`Table Name:        ${currentConfig.tableName || "Not set"}`);
+    console.log(`Table ID:          ${currentConfig.tableId || "Not set"}`);
   } else {
     console.log(yellow("No configuration found."));
   }
 
-  console.log("\nSync Settings:");
-  console.log(`  Direction:       ${currentConfig.syncDirection || "sync"}`);
-  console.log(`  Auto-sync:       ${currentConfig.autoSync || false}`);
-  console.log(
-    `  Interval:        ${currentConfig.syncInterval || 300} seconds`,
-  );
-
   console.log("\nField Mappings:");
-  if (
-    currentConfig.fieldMappings &&
-    Object.keys(currentConfig.fieldMappings).length > 0
-  ) {
-    for (
-      const [nocodbField, thingsField] of Object.entries(
-        currentConfig.fieldMappings,
-      )
-    ) {
-      console.log(`  ${nocodbField} → ${thingsField}`);
-    }
+  const mappingCount = currentConfig.fieldMappings
+    ? Object.keys(currentConfig.fieldMappings).length
+    : 0;
+  if (mappingCount > 0) {
+    console.log(
+      `  ${mappingCount} mapping(s) configured. Use 'map --list' to view.`,
+    );
   } else {
-    console.log("  No field mappings configured");
+    console.log("  No field mappings configured. Use 'map' to configure.");
   }
 }
 
@@ -108,11 +110,20 @@ async function setConfig(
     if (token) config.set("nocodbToken", token);
   }
 
-  if (flags["project-name"]) {
-    config.set("projectName", String(flags["project-name"]));
+  if (flags["base-name"]) {
+    config.set("projectName", String(flags["base-name"]));
   } else if (flags.set) {
-    const projectName = prompt("NocoDB Project Name:");
-    if (projectName) config.set("projectName", projectName);
+    const baseName = prompt(
+      "NocoDB Base Name (the workspace/database containing your table):",
+    );
+    if (baseName) config.set("projectName", baseName);
+  }
+
+  if (flags["base-id"]) {
+    config.set("baseId", String(flags["base-id"]));
+  } else if (flags.set) {
+    const baseId = prompt("NocoDB Base ID (optional, leave empty to auto-detect):");
+    if (baseId) config.set("baseId", baseId);
   }
 
   if (flags["table-name"]) {
@@ -122,11 +133,13 @@ async function setConfig(
     if (tableName) config.set("tableName", tableName);
   }
 
-  if (flags.set) {
-    const direction = prompt("Sync direction (push/pull/sync) [sync]:");
-    if (direction && ["push", "pull", "sync"].includes(direction)) {
-      config.set("syncDirection", direction);
-    }
+  if (flags["table-id"]) {
+    config.set("tableId", String(flags["table-id"]));
+  } else if (flags.set) {
+    const tableId = prompt(
+      "NocoDB Table ID (optional, leave empty to auto-detect):",
+    );
+    if (tableId) config.set("tableId", tableId);
   }
 
   await config.save();
@@ -149,7 +162,7 @@ async function resetConfig(config: ConfigManager): Promise<void> {
 function printConfigHelp(): void {
   console.log(`
 ${bold("CONFIG COMMAND")}
-Configure sync settings for NocoDB and Things
+Configure NocoDB connection and sync settings
 
 ${bold("USAGE:")}
   nocodb-things config [options]
@@ -159,15 +172,28 @@ ${bold("OPTIONS:")}
   -s, --set               Interactive configuration setup
   --show                  Display current configuration
   --reset                 Reset all configuration
-  --nocodb-url <url>      Set NocoDB API URL
-  --nocodb-token <token>  Set NocoDB API token
-  --project-name <name>   Set NocoDB project name
-  --table-name <name>     Set NocoDB table name
+
+${bold("CONNECTION OPTIONS:")}
+  --nocodb-url <url>      Set NocoDB API URL (e.g., https://app.nocodb.com)
+  --nocodb-token <token>  Set NocoDB API authentication token
+
+${bold("TARGET OPTIONS:")}
+  --base-name <name>      Set NocoDB Base name (workspace/database)
+  --base-id <id>          Set NocoDB Base ID (optional, auto-detected)
+  --table-name <name>     Set NocoDB Table name
+  --table-id <id>         Set NocoDB Table ID (optional, auto-detected)
+
+${bold("NOTES:")}
+  • A NocoDB "Base" is a workspace/database that contains tables
+  • Base ID and Table ID can be auto-detected from their names
+  • Use --show to view current configuration including IDs
+  • Field mappings are managed with the 'map' command
 
 ${bold("EXAMPLES:")}
-  nocodb-things config --set                          # Interactive setup
-  nocodb-things config --show                         # View current config
-  nocodb-things config --nocodb-url https://api.example.com
-  nocodb-things config --reset                        # Reset all settings
+  nocodb-things config --set                              # Interactive setup
+  nocodb-things config --show                             # View config
+  nocodb-things config --base-name "My Workspace"         # Set base name
+  nocodb-things config --table-id "mo2x03mdukvj9ap"       # Set table ID
+  nocodb-things config --reset                            # Reset all
 `);
 }
