@@ -20,9 +20,10 @@ export async function projectSyncCommand(
   globalFlags: Record<string, unknown>,
 ): Promise<void> {
   const flags = parseArgs(args, {
-    boolean: ["help", "dry-run", "debug"],
+    boolean: ["help", "dry-run", "debug", "verbose"],
     alias: {
       h: "help",
+      v: "verbose",
     },
   });
 
@@ -281,6 +282,11 @@ export async function projectSyncCommand(
         if (needsUpdate) {
           const recordId = await nocodb.getRecordId(matchingRecord);
 
+          // Verbose mode: show sync data
+          if (flags.verbose) {
+            printVerboseSync(project, "update", updates, recordId);
+          }
+
           // Debug mode: show data being sent
           if (flags.debug) {
             printDebugSyncData(updates);
@@ -293,7 +299,13 @@ export async function projectSyncCommand(
             printDebugHttpResponse(200, "OK", result);
           }
 
-          console.log(green(`✓ Updated record for project: ${project.title}`));
+          if (!flags.verbose) {
+            console.log(
+              green(`✓ Updated record for project: ${project.title}`),
+            );
+          } else {
+            console.log(green(`✓ Successfully updated`));
+          }
           updated++;
         } else if (globalFlags.verbose) {
           console.log(`- Project "${project.title}" already has correct UUID`);
@@ -378,6 +390,11 @@ export async function projectSyncCommand(
 
               const recordId = await nocodb.getRecordId(selectedRecord);
 
+              // Verbose mode: show sync data
+              if (flags.verbose) {
+                printVerboseSync(project, "link", updates, recordId);
+              }
+
               if (flags.debug) {
                 printDebugSyncData(updates);
               }
@@ -388,11 +405,15 @@ export async function projectSyncCommand(
                 printDebugHttpResponse(200, "OK", result);
               }
 
-              console.log(
-                green(
-                  `✓ Linked and updated record for project: ${project.title}`,
-                ),
-              );
+              if (!flags.verbose) {
+                console.log(
+                  green(
+                    `✓ Linked and updated record for project: ${project.title}`,
+                  ),
+                );
+              } else {
+                console.log(green(`✓ Successfully linked and updated`));
+              }
               updated++;
               synced++;
               continue;
@@ -467,6 +488,11 @@ export async function projectSyncCommand(
 
             const recordId = await nocodb.getRecordId(selectedRecord);
 
+            // Verbose mode: show sync data
+            if (flags.verbose) {
+              printVerboseSync(project, "link", updates, recordId);
+            }
+
             if (flags.debug) {
               printDebugSyncData(updates);
             }
@@ -477,11 +503,15 @@ export async function projectSyncCommand(
               printDebugHttpResponse(200, "OK", result);
             }
 
-            console.log(
-              green(
-                `✓ Linked and updated record for project: ${project.title}`,
-              ),
-            );
+            if (!flags.verbose) {
+              console.log(
+                green(
+                  `✓ Linked and updated record for project: ${project.title}`,
+                ),
+              );
+            } else {
+              console.log(green(`✓ Successfully linked and updated`));
+            }
             updated++;
             synced++;
             continue;
@@ -504,6 +534,11 @@ export async function projectSyncCommand(
           newRecord.Area = project.area;
         }
 
+        // Verbose mode: show sync data
+        if (flags.verbose) {
+          printVerboseSync(project, "create", newRecord);
+        }
+
         // Debug mode: show data being sent
         if (flags.debug) {
           printDebugSyncData(newRecord);
@@ -516,9 +551,13 @@ export async function projectSyncCommand(
           printDebugHttpResponse(201, "Created", result);
         }
 
-        console.log(
-          green(`✓ Created new record for project: ${project.title}`),
-        );
+        if (!flags.verbose) {
+          console.log(
+            green(`✓ Created new record for project: ${project.title}`),
+          );
+        } else {
+          console.log(green(`✓ Successfully created`));
+        }
         created++;
       }
 
@@ -889,6 +928,87 @@ function promptForUuid(
   return { action: "skip" };
 }
 
+/**
+ * Print verbose sync information
+ */
+function printVerboseSync(
+  project: ThingsProject,
+  operation: "create" | "update" | "link",
+  updates: Partial<NocoDBRecord>,
+  recordId?: string,
+): void {
+  console.log("");
+  console.log(bold(`Syncing: "${project.title}"`));
+  console.log(gray("─".repeat(60)));
+  console.log("");
+  console.log(bold("Things Data:"));
+  console.log(`  Title:        ${cyan(project.title)}`);
+  console.log(`  UUID:         ${cyan(project.id)}`);
+  console.log(
+    `  Notes:        ${
+      project.notes
+        ? cyan(
+          project.notes.length > 100
+            ? project.notes.substring(0, 100) + "..."
+            : project.notes,
+        )
+        : gray("(empty)")
+    }`,
+  );
+  console.log(
+    `  Area:         ${project.area ? cyan(project.area) : gray("(none)")}`,
+  );
+  console.log("");
+
+  const operationText = {
+    create: "Create new record",
+    update: "Update existing record",
+    link: "Link to selected record",
+  }[operation];
+  console.log(bold("Operation:      ") + green(operationText));
+
+  if (recordId) {
+    console.log(bold("NocoDB Record:  ") + `ID ${cyan(recordId)}`);
+  }
+
+  console.log("");
+  console.log(bold("Field Mappings:"));
+
+  // Display field mappings
+  for (const [field, value] of Object.entries(updates)) {
+    const thingsField = getThingsFieldName(field);
+    const displayValue = typeof value === "string"
+      ? (value === "" ? gray("(empty)") : cyan(value))
+      : cyan(String(value));
+    console.log(
+      `  ${thingsField.padEnd(12)} → ${field.padEnd(15)} : ${displayValue}`,
+    );
+  }
+
+  console.log("");
+}
+
+/**
+ * Get the Things field name for a NocoDB field
+ */
+function getThingsFieldName(nocodbField: string): string {
+  const mapping: Record<string, string> = {
+    "Things UUID": "uuid",
+    "things_uuid": "uuid",
+    "UUID": "uuid",
+    "Project Name": "title",
+    "project_name": "title",
+    "Title": "title",
+    "Goal": "notes",
+    "goal": "notes",
+    "Notes": "notes",
+    "notes": "notes",
+    "Area": "area",
+    "area": "area",
+  };
+  return mapping[nocodbField] || nocodbField.toLowerCase();
+}
+
 function printDebugThingsProject(project: ThingsProject): void {
   console.log(cyan(bold("\n📋 Things Project Data:")));
   console.log(cyan(`  Title: ${project.title}`));
@@ -968,6 +1088,7 @@ ${bold("USAGE:")}
 
 ${bold("OPTIONS:")}
   -h, --help              Show this help message
+  -v, --verbose           Show detailed sync information for each project
   --dry-run               Preview changes without applying them
   --debug                 Enable debug mode with step-by-step confirmation
 
@@ -982,6 +1103,16 @@ ${bold("BEHAVIOR:")}
   • Updates Things UUID in NocoDB records
   • Creates new records for unmatched projects
   • Project notes update the Goal field
+
+${bold("VERBOSE MODE:")}
+  For each project being synced, displays:
+  • Things project data (Title, UUID, Notes, Area)
+  • Sync operation type (Create/Update/Link)
+  • NocoDB record ID (if updating existing record)
+  • Field mappings showing what data is being sent to each NocoDB field
+  • Success confirmation for each operation
+
+  Use this mode to verify data is syncing correctly without API-level details.
 
 ${bold("DEBUG MODE:")}
   • Process one project at a time with confirmation prompts
@@ -1018,9 +1149,12 @@ ${bold("INTERACTIVE PROMPTS:")}
   • Selected record will be updated with project UUID and data
 
 ${bold("EXAMPLES:")}
-  nocodb-things                  # Sync all projects (default)
-  nocodb-things sync             # Sync all projects
-  nocodb-things sync --dry-run   # Preview changes only
-  nocodb-things sync --debug     # Debug mode with step-by-step confirmation
+  nocodb-things                    # Sync all projects (default)
+  nocodb-things sync               # Sync all projects
+  nocodb-things sync --verbose     # Sync with detailed output for each project
+  nocodb-things sync -v            # Short form of --verbose
+  nocodb-things sync --dry-run     # Preview changes only
+  nocodb-things sync --debug       # Debug mode with step-by-step confirmation
+  nocodb-things sync -v --debug    # Combine verbose and debug modes
 `);
 }
