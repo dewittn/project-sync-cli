@@ -1,7 +1,11 @@
 import { parseArgs } from "@std/cli/parse-args";
-import { bold, cyan, green, yellow } from "@std/fmt/colors";
+import { bold, cyan, green, red, yellow } from "@std/fmt/colors";
 import { ConfigManager } from "../../config/manager.ts";
-import { NocoDBClient, NocoDBRecord } from "../../api/nocodb.ts";
+import {
+  NocoDBClient,
+  NocoDBHTTPError,
+  NocoDBRecord,
+} from "../../api/nocodb.ts";
 import { Input, Select } from "@cliffy/prompt";
 
 export interface ThingsProject {
@@ -537,8 +541,26 @@ export async function projectSyncCommand(
     console.log(`  Records created: ${created}`);
     console.log(`  Records updated: ${updated}`);
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    throw new Error(`Sync failed: ${errorMessage}`);
+    console.log("");
+    console.log(red(bold("❌ Sync Failed")));
+    console.log("");
+
+    // If it's a NocoDBHTTPError, display detailed information
+    if (error instanceof NocoDBHTTPError) {
+      console.log(error.toDetailedString());
+    } else if (error instanceof Error) {
+      console.log(red(`Error: ${error.message}`));
+      if (error.stack && flags.debug) {
+        console.log("");
+        console.log(yellow("Stack trace:"));
+        console.log(yellow(error.stack));
+      }
+    } else {
+      console.log(red(`Error: ${String(error)}`));
+    }
+
+    console.log("");
+    Deno.exit(1);
   }
 }
 

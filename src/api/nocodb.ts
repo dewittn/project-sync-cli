@@ -5,6 +5,110 @@ export interface NocoDBRecord {
   [key: string]: unknown;
 }
 
+/**
+ * Custom error class that includes detailed HTTP request/response information
+ */
+export class NocoDBHTTPError extends Error {
+  public readonly method: string;
+  public readonly url: string;
+  public readonly statusCode: number;
+  public readonly statusText: string;
+  public readonly requestHeaders: Record<string, string>;
+  public readonly requestBody?: string;
+  public readonly responseBody?: string;
+  public readonly responseHeaders: Record<string, string>;
+
+  constructor(
+    message: string,
+    options: {
+      method: string;
+      url: string;
+      statusCode: number;
+      statusText: string;
+      requestHeaders: Record<string, string>;
+      requestBody?: string;
+      responseBody?: string;
+      responseHeaders: Record<string, string>;
+    },
+  ) {
+    super(message);
+    this.name = "NocoDBHTTPError";
+    this.method = options.method;
+    this.url = options.url;
+    this.statusCode = options.statusCode;
+    this.statusText = options.statusText;
+    this.requestHeaders = options.requestHeaders;
+    this.requestBody = options.requestBody;
+    this.responseBody = options.responseBody;
+    this.responseHeaders = options.responseHeaders;
+  }
+
+  /**
+   * Get a sanitized copy of headers (hides sensitive tokens)
+   */
+  private sanitizeHeaders(
+    headers: Record<string, string>,
+  ): Record<string, string> {
+    const sanitized = { ...headers };
+    if (sanitized["xc-token"]) {
+      sanitized["xc-token"] = `${sanitized["xc-token"].substring(0, 8)}...`;
+    }
+    if (sanitized["authorization"]) {
+      sanitized["authorization"] = "***";
+    }
+    return sanitized;
+  }
+
+  /**
+   * Format the error as a detailed, readable string
+   */
+  toDetailedString(): string {
+    const lines: string[] = [];
+    lines.push(`❌ ${this.message}`);
+    lines.push("");
+    lines.push("HTTP Request Details:");
+    lines.push(`  Method: ${this.method}`);
+    lines.push(`  URL: ${this.url}`);
+    lines.push(`  Headers:`);
+    const sanitizedReqHeaders = this.sanitizeHeaders(this.requestHeaders);
+    for (const [key, value] of Object.entries(sanitizedReqHeaders)) {
+      lines.push(`    ${key}: ${value}`);
+    }
+    if (this.requestBody) {
+      lines.push(`  Body:`);
+      // Try to format JSON nicely
+      try {
+        const parsed = JSON.parse(this.requestBody);
+        lines.push(
+          `    ${JSON.stringify(parsed, null, 2).replace(/\n/g, "\n    ")}`,
+        );
+      } catch {
+        lines.push(`    ${this.requestBody}`);
+      }
+    }
+    lines.push("");
+    lines.push("HTTP Response:");
+    lines.push(`  Status: ${this.statusCode} ${this.statusText}`);
+    lines.push(`  Headers:`);
+    for (const [key, value] of Object.entries(this.responseHeaders)) {
+      lines.push(`    ${key}: ${value}`);
+    }
+    if (this.responseBody) {
+      lines.push(`  Body:`);
+      // Try to format JSON nicely
+      try {
+        const parsed = JSON.parse(this.responseBody);
+        lines.push(
+          `    ${JSON.stringify(parsed, null, 2).replace(/\n/g, "\n    ")}`,
+        );
+      } catch {
+        lines.push(`    ${this.responseBody}`);
+      }
+    }
+    return lines.join("\n");
+  }
+}
+
 export interface TestConnectionResult {
   success: boolean;
   version?: string;
@@ -42,6 +146,83 @@ export class NocoDBClient {
     this.tableName = config.get("tableName");
     this.baseId = config.get("baseId");
     this.tableId = config.get("tableId");
+  }
+
+  /**
+   * Helper method to make HTTP requests with detailed error handling
+   */
+  private async fetchWithErrorHandling(
+    url: string,
+    options: RequestInit = {},
+  ): Promise<Response> {
+    const method = options.method || "GET";
+    const headers = {
+      "xc-token": this.token,
+      ...options.headers,
+    };
+
+    const requestBody = options.body ? String(options.body) : undefined;
+
+    try {
+      const response = await fetch(url, {
+        ...options,
+        headers,
+      });
+
+      if (!response.ok) {
+        // Capture response headers
+        const responseHeaders: Record<string, string> = {};
+        response.headers.forEach((value, key) => {
+          responseHeaders[key] = value;
+        });
+
+        // Capture response body
+        const responseBody = await response.text();
+
+        // Parse error message from response if available
+        let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+        try {
+          const errorData = JSON.parse(responseBody);
+          if (errorData.message) {
+            errorMessage = errorData.message;
+          } else if (errorData.msg) {
+            errorMessage = errorData.msg;
+          } else if (errorData.error) {
+            errorMessage = errorData.error;
+          }
+        } catch {
+          // Response wasn't JSON, use the raw text if available
+          if (responseBody && responseBody.length < 500) {
+            errorMessage += `: ${responseBody}`;
+          }
+        }
+
+        throw new NocoDBHTTPError(errorMessage, {
+          method,
+          url,
+          statusCode: response.status,
+          statusText: response.statusText,
+          requestHeaders: headers as Record<string, string>,
+          requestBody,
+          responseBody,
+          responseHeaders,
+        });
+      }
+
+      return response;
+    } catch (error) {
+      // If it's already a NocoDBHTTPError, just re-throw it
+      if (error instanceof NocoDBHTTPError) {
+        throw error;
+      }
+
+      // Otherwise, wrap network errors in a descriptive error
+      throw new Error(
+        `Network error while ${method} ${url}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
   }
 
   async testConnection(): Promise<TestConnectionResult> {
@@ -158,18 +339,9 @@ export class NocoDBClient {
 
     while (hasMore) {
       requestCount++;
-      const response = await fetch(
-        `${this.baseUrl}/api/v2/tables/${this.tableId}/records?limit=${limit}&offset=${offset}`,
-        {
-          headers: {
-            "xc-token": this.token,
-          },
-        },
-      );
-
-      if (!response.ok) {
-        throw new Error(`Failed to fetch records: ${response.statusText}`);
-      }
+      const url =
+        `${this.baseUrl}/api/v2/tables/${this.tableId}/records?limit=${limit}&offset=${offset}`;
+      const response = await this.fetchWithErrorHandling(url);
 
       const data = await response.json();
       const batch = data.list || [];
@@ -195,45 +367,14 @@ export class NocoDBClient {
     // Validate and clean the record data
     const cleanedRecord = this.validateAndCleanRecord(record);
 
-    const response = await fetch(
-      `${this.baseUrl}/api/v2/tables/${this.tableId}/records`,
-      {
-        method: "POST",
-        headers: {
-          "xc-token": this.token,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(cleanedRecord),
+    const url = `${this.baseUrl}/api/v2/tables/${this.tableId}/records`;
+    const response = await this.fetchWithErrorHandling(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
       },
-    );
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      let errorMessage = `Failed to create record: ${response.statusText}`;
-
-      try {
-        const errorData = JSON.parse(errorText);
-        if (errorData.message) {
-          errorMessage += ` - ${errorData.message}`;
-        }
-        if (errorData.details) {
-          errorMessage += ` - Details: ${JSON.stringify(errorData.details)}`;
-        }
-      } catch {
-        if (errorText) {
-          errorMessage += ` - ${errorText}`;
-        }
-      }
-
-      // Add debug information about the request
-      errorMessage +=
-        `\nRequest URL: ${this.baseUrl}/api/v2/tables/${this.tableId}/records`;
-      errorMessage += `\nRequest payload: ${
-        JSON.stringify(cleanedRecord, null, 2)
-      }`;
-
-      throw new Error(errorMessage);
-    }
+      body: JSON.stringify(cleanedRecord),
+    });
 
     return await response.json();
   }
@@ -284,43 +425,14 @@ export class NocoDBClient {
     const cleanedUpdates = this.validateAndCleanRecord(updates);
     const payload = [{ [this.primaryKeyField!]: id, ...cleanedUpdates }];
 
-    const response = await fetch(
-      `${this.baseUrl}/api/v2/tables/${this.tableId}/records`,
-      {
-        method: "PATCH",
-        headers: {
-          "xc-token": this.token,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
+    const url = `${this.baseUrl}/api/v2/tables/${this.tableId}/records`;
+    const response = await this.fetchWithErrorHandling(url, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
       },
-    );
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      let errorMessage = `Failed to update record: ${response.statusText}`;
-
-      try {
-        const errorData = JSON.parse(errorText);
-        if (errorData.message) {
-          errorMessage += ` - ${errorData.message}`;
-        }
-        if (errorData.details) {
-          errorMessage += ` - Details: ${JSON.stringify(errorData.details)}`;
-        }
-      } catch {
-        if (errorText) {
-          errorMessage += ` - ${errorText}`;
-        }
-      }
-
-      // Add debug information about the request
-      errorMessage +=
-        `\nRequest URL: ${this.baseUrl}/api/v2/tables/${this.tableId}/records`;
-      errorMessage += `\nRequest payload: ${JSON.stringify(payload, null, 2)}`;
-
-      throw new Error(errorMessage);
-    }
+      body: JSON.stringify(payload),
+    });
 
     const result = await response.json();
     return result[0] || result;
@@ -330,64 +442,41 @@ export class NocoDBClient {
     await this.ensureTableId();
     await this.ensurePrimaryKeyField();
 
-    const response = await fetch(
-      `${this.baseUrl}/api/v2/tables/${this.tableId}/records`,
-      {
-        method: "DELETE",
-        headers: {
-          "xc-token": this.token,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify([{ [this.primaryKeyField!]: id }]),
+    const url = `${this.baseUrl}/api/v2/tables/${this.tableId}/records`;
+    await this.fetchWithErrorHandling(url, {
+      method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
       },
-    );
-
-    if (!response.ok) {
-      throw new Error(`Failed to delete record: ${response.statusText}`);
-    }
+      body: JSON.stringify([{ [this.primaryKeyField!]: id }]),
+    });
   }
 
   async getRecordById(id: string): Promise<NocoDBRecord | null> {
     await this.ensureTableId();
 
-    const response = await fetch(
-      `${this.baseUrl}/api/v2/tables/${this.tableId}/records?where=(Id,eq,${id})&limit=1`,
-      {
-        headers: {
-          "xc-token": this.token,
-        },
-      },
-    );
+    const url =
+      `${this.baseUrl}/api/v2/tables/${this.tableId}/records?where=(Id,eq,${id})&limit=1`;
 
-    if (response.status === 404) {
-      return null;
+    try {
+      const response = await this.fetchWithErrorHandling(url);
+      const data = await response.json();
+      const records = data.list || [];
+      return records.length > 0 ? records[0] : null;
+    } catch (error) {
+      // If it's a 404, return null instead of throwing
+      if (error instanceof NocoDBHTTPError && error.statusCode === 404) {
+        return null;
+      }
+      throw error;
     }
-
-    if (!response.ok) {
-      throw new Error(`Failed to fetch record: ${response.statusText}`);
-    }
-
-    const data = await response.json();
-    const records = data.list || [];
-    return records.length > 0 ? records[0] : null;
   }
 
   async getTableSchema(): Promise<Record<string, unknown>> {
     await this.ensureTableId();
 
-    const response = await fetch(
-      `${this.baseUrl}/api/v2/meta/tables/${this.tableId}`,
-      {
-        headers: {
-          "xc-token": this.token,
-        },
-      },
-    );
-
-    if (!response.ok) {
-      throw new Error(`Failed to fetch table schema: ${response.statusText}`);
-    }
-
+    const url = `${this.baseUrl}/api/v2/meta/tables/${this.tableId}`;
+    const response = await this.fetchWithErrorHandling(url);
     return await response.json();
   }
 
@@ -460,15 +549,8 @@ export class NocoDBClient {
 
     // First, get all bases to find the base ID
     if (!this.baseId) {
-      const basesResponse = await fetch(`${this.baseUrl}/api/v2/meta/bases`, {
-        headers: {
-          "xc-token": this.token,
-        },
-      });
-
-      if (!basesResponse.ok) {
-        throw new Error(`Failed to fetch bases: ${basesResponse.statusText}`);
-      }
+      const basesUrl = `${this.baseUrl}/api/v2/meta/bases`;
+      const basesResponse = await this.fetchWithErrorHandling(basesUrl);
 
       const basesData = await basesResponse.json();
       const bases = basesData.list || [];
@@ -484,18 +566,8 @@ export class NocoDBClient {
     }
 
     // Then, get tables for this base to find the table ID
-    const tablesResponse = await fetch(
-      `${this.baseUrl}/api/v2/meta/bases/${this.baseId}/tables`,
-      {
-        headers: {
-          "xc-token": this.token,
-        },
-      },
-    );
-
-    if (!tablesResponse.ok) {
-      throw new Error(`Failed to fetch tables: ${tablesResponse.statusText}`);
-    }
+    const tablesUrl = `${this.baseUrl}/api/v2/meta/bases/${this.baseId}/tables`;
+    const tablesResponse = await this.fetchWithErrorHandling(tablesUrl);
 
     const tablesData = await tablesResponse.json();
     const tables = tablesData.list || [];
