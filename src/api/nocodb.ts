@@ -145,24 +145,48 @@ export class NocoDBClient {
     }
   }
 
-  async getRecords(limit = 100, offset = 0): Promise<NocoDBRecord[]> {
+  async getRecords(
+    onProgress?: (fetched: number, batch: number) => void,
+  ): Promise<NocoDBRecord[]> {
     await this.ensureTableId();
 
-    const response = await fetch(
-      `${this.baseUrl}/api/v2/tables/${this.tableId}/records?limit=${limit}&offset=${offset}`,
-      {
-        headers: {
-          "xc-token": this.token,
-        },
-      },
-    );
+    const allRecords: NocoDBRecord[] = [];
+    const limit = 100;
+    let offset = 0;
+    let hasMore = true;
+    let requestCount = 0;
 
-    if (!response.ok) {
-      throw new Error(`Failed to fetch records: ${response.statusText}`);
+    while (hasMore) {
+      requestCount++;
+      const response = await fetch(
+        `${this.baseUrl}/api/v2/tables/${this.tableId}/records?limit=${limit}&offset=${offset}`,
+        {
+          headers: {
+            "xc-token": this.token,
+          },
+        },
+      );
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch records: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      const batch = data.list || [];
+
+      allRecords.push(...batch);
+
+      // Call progress callback if provided
+      if (onProgress) {
+        onProgress(allRecords.length, batch.length);
+      }
+
+      // If we got fewer records than the limit, we've reached the end
+      hasMore = batch.length === limit;
+      offset += limit;
     }
 
-    const data = await response.json();
-    return data.list || [];
+    return allRecords;
   }
 
   async createRecord(record: Omit<NocoDBRecord, "id">): Promise<NocoDBRecord> {

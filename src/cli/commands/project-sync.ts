@@ -72,21 +72,35 @@ export async function projectSyncCommand(
 
     // Get all records from NocoDB
     if (flags.debug) {
-      console.log(cyan(bold("\n🔗 NocoDB Initial Query:")));
+      console.log(cyan(bold("\n🔗 NocoDB Pagination Query:")));
       console.log(
         cyan(
           `  GET ${config.get("nocodbUrl")}/api/v2/tables/{tableId}/records`,
         ),
       );
       console.log(cyan("  Query parameters:"));
-      console.log(cyan("    limit: 100 (default)"));
-      console.log(cyan("    offset: 0 (default)"));
+      console.log(cyan("    limit: 100 (per request)"));
+      console.log(cyan("    offset: incremented until all records fetched"));
       console.log(
-        cyan("  Note: Fetching all records for client-side matching"),
+        cyan("  Note: Using pagination to fetch all records"),
       );
     }
 
-    const nocodbRecords = await nocodb.getRecords();
+    // Fetch records with optional progress callback for debug mode
+    const nocodbRecords = await nocodb.getRecords(
+      flags.debug
+        ? (fetched: number, batch: number) => {
+          if (batch > 0) {
+            console.log(
+              cyan(
+                `  📥 Fetched batch of ${batch} records (total: ${fetched})`,
+              ),
+            );
+          }
+        }
+        : undefined,
+    );
+
     console.log(`Found ${nocodbRecords.length} records in NocoDB`);
 
     // Debug mode: Show list of records and save to file
@@ -569,6 +583,7 @@ ${bold("OPTIONS:")}
 
 ${bold("BEHAVIOR:")}
   • One-way sync: Things projects → NocoDB records
+  • Fetches ALL records from NocoDB using pagination (100 per request)
   • Two-step matching: First by Things UUID, then by Title (fallback)
   • Uses field mappings from config for flexible field names
   • Updates Things UUID in NocoDB records
@@ -578,6 +593,7 @@ ${bold("BEHAVIOR:")}
 ${bold("DEBUG MODE:")}
   • Process one project at a time with confirmation prompts
   • Display NocoDB API query parameters (GET request details)
+  • Show pagination progress (batches of 100 records)
   • List all NocoDB records found (project names only)
   • Save full NocoDB response to .nocodb-things-debug/ directory
   • Display Things project data before sync
