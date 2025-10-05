@@ -68,6 +68,11 @@ export async function projectSyncCommand(
         console.log(`Processing project: ${project.title}`);
       }
 
+      // Debug mode: show search criteria before matching
+      if (flags.debug) {
+        printDebugSearchCriteria(project.title, nocodbRecords.length);
+      }
+
       // Find matching NocoDB record by title
       const matchingRecord = nocodbRecords.find((record: NocoDBRecord) =>
         record.Title === project.title || record.title === project.title
@@ -375,13 +380,25 @@ function printDebugSyncData(data: Partial<NocoDBRecord>): void {
   console.log(cyan(JSON.stringify(data, null, 2)));
 }
 
+function printDebugSearchCriteria(
+  projectTitle: string,
+  totalRecords: number,
+): void {
+  console.log(cyan(bold("\n🔎 Searching NocoDB for Matching Record:")));
+  console.log(cyan(`  Search criteria: Title field equals "${projectTitle}"`));
+  console.log(
+    cyan(`  Checking fields: record.Title OR record.title (case-sensitive)`),
+  );
+  console.log(cyan(`  Total records to search: ${totalRecords}`));
+}
+
 function printDebugMatchedRecord(record: NocoDBRecord | null): void {
   if (record) {
-    console.log(cyan(bold("\n🔍 Matched NocoDB Record:")));
+    console.log(cyan(bold("\n✓ Match Found:")));
     console.log(cyan(JSON.stringify(record, null, 2)));
   } else {
-    console.log(cyan(bold("\n🔍 Matched NocoDB Record:")));
-    console.log(cyan("  (no match found)"));
+    console.log(cyan(bold("\n✗ No Match Found")));
+    console.log(cyan("  No existing NocoDB record with matching title"));
   }
 }
 
@@ -423,8 +440,9 @@ ${bold("BEHAVIOR:")}
 ${bold("DEBUG MODE:")}
   • Process one project at a time with confirmation prompts
   • Display Things project data before sync
-  • Display data being sent to NocoDB
+  • Display NocoDB search criteria and matching process
   • Display matched NocoDB record (if found)
+  • Display data being sent to NocoDB
   • Display full HTTP response from NocoDB
 
 ${bold("EXAMPLES:")}
