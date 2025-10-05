@@ -1,6 +1,7 @@
 import { parseArgs } from "@std/cli/parse-args";
-import { bold, green, red, yellow } from "@std/fmt/colors";
+import { bold, cyan, green, red, yellow } from "@std/fmt/colors";
 import { ConfigManager } from "../../config/manager.ts";
+import { NocoDBClient } from "../../api/nocodb.ts";
 
 // Valid Things project properties
 const VALID_THINGS_PROPERTIES = ["title", "id", "notes", "area"] as const;
@@ -28,7 +29,7 @@ export async function mapCommand(
   const config = await ConfigManager.load();
 
   if (flags.list) {
-    listMappings(config);
+    await listMappings(config);
     return;
   }
 
@@ -61,7 +62,24 @@ export async function mapCommand(
   await interactiveMappingSetup(config);
 }
 
-function listMappings(config: ConfigManager): void {
+async function listMappings(config: ConfigManager): Promise<void> {
+  // Get available NocoDB fields if configured
+  let availableNocoDBFields: string[] = [];
+  if (config.isConfigured()) {
+    try {
+      const nocodb = new NocoDBClient(config);
+      const schema = await nocodb.getTableSchema();
+      const columns = schema.columns as Array<{ title: string }>;
+      availableNocoDBFields = columns.map((col) => col.title).sort();
+    } catch (error) {
+      console.log(
+        yellow(
+          `Warning: Could not fetch NocoDB table schema: ${error.message}`,
+        ),
+      );
+    }
+  }
+
   const customMappings = config.get("fieldMappings") || {};
 
   // Default project field mappings
@@ -73,8 +91,10 @@ function listMappings(config: ConfigManager): void {
     "Area": "area",
   };
 
-  console.log(bold("\n🗺️  Project Field Mapping"));
-  console.log("─".repeat(60));
+  console.log(
+    bold("\n🗺️  Project Field Mapping (Sync Direction: Things → NocoDB)"),
+  );
+  console.log("─".repeat(70));
   console.log();
 
   // Separate valid and invalid custom mappings
@@ -118,8 +138,8 @@ function listMappings(config: ConfigManager): void {
   }
 
   // Build dynamic visual representation
-  console.log(bold("  Things Project          NocoDB Record"));
-  console.log("  ┌──────────────┐      ┌──────────────┐");
+  console.log(bold("  Things Project Field    →    NocoDB Table Field"));
+  console.log("  ┌──────────────────┐        ┌──────────────────┐");
 
   const thingsProperties = ["title", "id", "notes", "area"];
 
@@ -130,49 +150,53 @@ function listMappings(config: ConfigManager): void {
       const thingsDisplay = prop === "id" ? `${prop} (UUID)` : prop;
       const firstField = nocodbFields[0];
       console.log(
-        `  │ • ${thingsDisplay.padEnd(10)} │ ────>│ ${firstField.padEnd(12)} │`,
+        `  │ ${thingsDisplay.padEnd(16)} │ ────→ │ ${firstField.padEnd(16)} │`,
       );
 
       // Show additional mapped fields
       for (let i = 1; i < nocodbFields.length; i++) {
         console.log(
-          `  │              │      │ ${nocodbFields[i].padEnd(12)} │`,
+          `  │${" ".repeat(18)}│ ────→ │ ${nocodbFields[i].padEnd(16)} │`,
         );
       }
-    }
-  }
-
-  // Show any unmapped Things properties
-  for (const prop of thingsProperties) {
-    if (!thingsToNocoDB[prop]) {
+    } else {
+      // Show unmapped Things properties
       const thingsDisplay = prop === "id" ? `${prop} (UUID)` : prop;
-      console.log(`  │ • ${thingsDisplay.padEnd(10)} │      │              │`);
+      console.log(
+        `  │ ${thingsDisplay.padEnd(16)} │ ────→ │ ${
+          yellow("(not mapped)").padEnd(16)
+        } │`,
+      );
     }
   }
 
-  console.log("  └──────────────┘      └──────────────┘");
+  console.log("  └──────────────────┘        └──────────────────┘");
   console.log();
-  console.log("─".repeat(60));
+  console.log("─".repeat(70));
 
-  // Show configured mappings
-  console.log(bold("\nConfigured Mappings:"));
+  // Show configured mappings (reversed to show Things → NocoDB)
+  console.log(bold("\nActive Mappings (Things → NocoDB):"));
 
   if (Object.keys(effectiveMappings).length === 0) {
     console.log(yellow("  No field mappings configured."));
     console.log("  Run 'nocodb-things map' to set up mappings.");
   } else {
-    for (
-      const [nocodbField, thingsProperty] of Object.entries(effectiveMappings)
-    ) {
-      const isCustom = validCustomMappings[nocodbField] !== undefined;
-      const isDefault = !isCustom &&
-        defaultMappings[nocodbField] === thingsProperty;
-      const marker = isCustom ? "(custom)" : isDefault ? "(default)" : "";
-      console.log(
-        `  ${nocodbField.padEnd(20)} → ${thingsProperty.padEnd(15)} ${
-          marker ? green(marker) : ""
-        }`,
-      );
+    // Reverse the display to show Things property → NocoDB field
+    for (const thingsProp of thingsProperties) {
+      const nocodbFields = thingsToNocoDB[thingsProp] || [];
+      if (nocodbFields.length > 0) {
+        for (const nocodbField of nocodbFields) {
+          const isCustom = validCustomMappings[nocodbField] !== undefined;
+          const isDefault = !isCustom &&
+            defaultMappings[nocodbField] === thingsProp;
+          const marker = isCustom ? "(custom)" : isDefault ? "(default)" : "";
+          console.log(
+            `  Things.${thingsProp.padEnd(10)} → NocoDB.${
+              nocodbField.padEnd(20)
+            } ${marker ? green(marker) : ""}`,
+          );
+        }
+      }
     }
   }
 
@@ -188,9 +212,9 @@ function listMappings(config: ConfigManager): void {
       const [nocodbField, thingsProperty] of Object.entries(invalidMappings)
     ) {
       console.log(
-        `  ${nocodbField.padEnd(20)} → ${red(thingsProperty.padEnd(15))} ${
-          red("(invalid)")
-        }`,
+        `  Things.${red(thingsProperty.padEnd(10))} → NocoDB.${
+          nocodbField.padEnd(20)
+        } ${red("(invalid)")}`,
       );
     }
     console.log(
@@ -205,8 +229,45 @@ function listMappings(config: ConfigManager): void {
     );
   }
 
+  // Display available NocoDB fields if we fetched them
+  if (availableNocoDBFields.length > 0) {
+    console.log(bold("\n📋 Available NocoDB Table Fields:"));
+    console.log(
+      cyan(
+        "  The following fields are available in your NocoDB table for mapping:",
+      ),
+    );
+
+    // Group fields into mapped and unmapped
+    const mappedFields = Object.keys(effectiveMappings);
+    const unmappedFields = availableNocoDBFields.filter(
+      (field) => !mappedFields.includes(field),
+    );
+
+    // Show mapped fields
+    if (mappedFields.length > 0) {
+      console.log(cyan("\n  Currently mapped:"));
+      for (const field of mappedFields.sort()) {
+        console.log(cyan(`    • ${field} ${green("✓")}`));
+      }
+    }
+
+    // Show unmapped fields
+    if (unmappedFields.length > 0) {
+      console.log(cyan("\n  Available but not mapped:"));
+      for (const field of unmappedFields.sort()) {
+        console.log(cyan(`    • ${field}`));
+      }
+      console.log(
+        cyan(
+          '\n  Tip: Use "nocodb-things map --add <field>:<property>" to add mappings',
+        ),
+      );
+    }
+  }
+
   console.log();
-  console.log("Sync direction: Things → NocoDB (one-way)");
+  console.log(bold("ℹ️  Sync direction: Things → NocoDB (one-way)"));
 }
 
 async function addMapping(
@@ -246,8 +307,10 @@ async function addMapping(
   config.set("fieldMappings", mappings);
   await config.save();
 
-  console.log(green(`✓ Added mapping: ${nocodbField} → ${thingsProperty}`));
-  listMappings(config);
+  console.log(
+    green(`✓ Added mapping: Things.${thingsProperty} → NocoDB.${nocodbField}`),
+  );
+  await listMappings(config);
 }
 
 async function removeMapping(
@@ -266,7 +329,7 @@ async function removeMapping(
   await config.save();
 
   console.log(green(`✓ Removed mapping for: ${nocodbField}`));
-  listMappings(config);
+  await listMappings(config);
 }
 
 async function resetMappings(config: ConfigManager): Promise<void> {
@@ -276,7 +339,7 @@ async function resetMappings(config: ConfigManager): Promise<void> {
     config.set("fieldMappings", {});
     await config.save();
     console.log(green("✓ Field mappings reset successfully!"));
-    listMappings(config);
+    await listMappings(config);
   } else {
     console.log("Reset cancelled.");
   }
@@ -306,13 +369,15 @@ async function autoGenerateMappings(config: ConfigManager): Promise<void> {
   await config.save();
 
   console.log(green("✓ Project field mappings generated!"));
-  listMappings(config);
+  await listMappings(config);
 }
 
 async function interactiveMappingSetup(config: ConfigManager): Promise<void> {
   console.log(bold("Interactive Project Field Mapping Setup"));
   console.log("─".repeat(50));
-  console.log("Map NocoDB fields to Things project properties.");
+  console.log(
+    "Map Things project properties to NocoDB table fields (Things → NocoDB).",
+  );
   console.log("Press Enter to skip a field.\n");
 
   const thingsProjectProperties = [
@@ -349,10 +414,10 @@ async function interactiveMappingSetup(config: ConfigManager): Promise<void> {
 
     if (input && thingsProjectProperties.includes(input)) {
       mappings[field] = input;
-      console.log(green(`  ✓ ${field} → ${input}`));
+      console.log(green(`  ✓ Things.${input} → NocoDB.${field}`));
     } else if (input === "") {
       if (currentMapping) {
-        console.log(`  Keeping: ${field} → ${currentMapping}`);
+        console.log(`  Keeping: Things.${currentMapping} → NocoDB.${field}`);
       } else {
         console.log(`  Skipping: ${field}`);
       }
@@ -365,7 +430,7 @@ async function interactiveMappingSetup(config: ConfigManager): Promise<void> {
   await config.save();
 
   console.log(green("\n✓ Project field mappings saved successfully!"));
-  listMappings(config);
+  await listMappings(config);
 }
 
 async function cleanInvalidMappings(config: ConfigManager): Promise<void> {
@@ -404,7 +469,7 @@ async function cleanInvalidMappings(config: ConfigManager): Promise<void> {
       `\n✓ Removed ${Object.keys(removedMappings).length} invalid mapping(s)!`,
     ),
   );
-  listMappings(config);
+  await listMappings(config);
 }
 
 function printMapHelp(): void {
