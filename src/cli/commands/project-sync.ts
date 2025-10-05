@@ -1,5 +1,5 @@
 import { parseArgs } from "@std/cli/parse-args";
-import { bold, cyan, green, red, yellow } from "@std/fmt/colors";
+import { bold, cyan, gray, green, red, yellow } from "@std/fmt/colors";
 import { ConfigManager } from "../../config/manager.ts";
 import {
   NocoDBClient,
@@ -841,43 +841,54 @@ async function selectRecordInteractively(
 function promptForUuid(
   project: ThingsProject,
 ): { action: "create" | "skip" | "debug" | "search" } {
+  console.log("");
+  console.log(yellow(bold("━".repeat(70))));
   console.log(
-    yellow(`\nNo matching record found for project: "${project.title}"`),
+    yellow(bold(`No matching record found for project: "${project.title}"`)),
   );
-  console.log(`Project UUID: ${project.id}`);
-
-  if (project.area) {
-    console.log(`Project area: ${project.area}`);
-  }
+  console.log(yellow(bold("━".repeat(70))));
+  console.log("");
+  console.log(bold("Things Project Details:"));
+  console.log(`  Title:  ${cyan(project.title)}`);
+  console.log(`  UUID:   ${cyan(project.id)}`);
+  console.log(
+    `  Area:   ${project.area ? cyan(project.area) : gray("(none)")}`,
+  );
 
   if (project.notes) {
     console.log(
-      `Project notes: ${project.notes.substring(0, 100)}${
-        project.notes.length > 100 ? "..." : ""
+      `  Notes:  ${cyan(project.notes.substring(0, 200))}${
+        project.notes.length > 200 ? cyan("...") : ""
       }`,
     );
+  } else {
+    console.log(`  Notes:  ${gray("(none)")}`);
   }
 
+  console.log("");
   const input = prompt(
-    "Options: [y]Create new / [f]Find & select / [s]Skip all / [d]Debug / [N]Skip: ",
+    "Options: [c]Create new / [f]Find & select / [s]Skip all / [d]Debug / [n]Skip this: ",
   );
 
-  if (input?.toLowerCase() === "s") {
+  const inputLower = input?.toLowerCase();
+
+  if (inputLower === "s" || inputLower === "skip") {
     return { action: "skip" };
   }
 
-  if (input?.toLowerCase() === "d") {
+  if (inputLower === "d" || inputLower === "debug") {
     return { action: "debug" };
   }
 
-  if (input?.toLowerCase() === "f" || input?.toLowerCase() === "find") {
+  if (inputLower === "f" || inputLower === "find") {
     return { action: "search" };
   }
 
-  if (input?.toLowerCase() === "y" || input?.toLowerCase() === "yes") {
+  if (inputLower === "c" || inputLower === "create") {
     return { action: "create" };
   }
 
+  // Default to skip this project (n or anything else)
   return { action: "skip" };
 }
 
@@ -990,13 +1001,16 @@ ${bold("DEBUG MODE:")}
   • Display full HTTP response from NocoDB
 
 ${bold("INTERACTIVE PROMPTS:")}
-  When no matching record is found, you'll be prompted:
-  • "Options: [y]Create new / [f]Find & select / [s]Skip all / [d]Debug / [N]Skip"
-    - y: Create a new record for this project
+  When no matching record is found, you'll be prompted with project details:
+  • "Options: [c]Create new / [f]Find & select / [s]Skip all / [d]Debug / [n]Skip this"
+    - c: Create a new record for this project
     - f: Search and select an existing record to link (interactive fuzzy search)
-    - s: Skip all remaining records
-    - d: Show debug info for this record, then ask again
-    - N: Skip this record (default)
+    - s: Skip all remaining projects
+    - d: Show debug info for this project, then ask again
+    - n: Skip this project (default)
+
+  Project details displayed:
+    - Title, UUID, Area, and Notes (up to 200 characters)
 
   ${bold("Find & Select Mode:")}
   • Type to search through all NocoDB records with fuzzy matching
