@@ -2,6 +2,7 @@ import { parseArgs } from "@std/cli/parse-args";
 import { bold, cyan, green, yellow } from "@std/fmt/colors";
 import { ConfigManager } from "../../config/manager.ts";
 import { NocoDBClient, NocoDBRecord } from "../../api/nocodb.ts";
+import { Input, Select } from "@cliffy/prompt";
 
 export interface ThingsProject {
   id: string;
@@ -295,7 +296,7 @@ export async function projectSyncCommand(
           console.log(`- Project "${project.title}" already has correct UUID`);
         }
       } else {
-        // No match found, prompt user for create/skip/debug
+        // No match found, prompt user for create/skip/debug/search
         const response = promptForUuid(project);
 
         if (response.action === "debug") {
@@ -317,7 +318,88 @@ export async function projectSyncCommand(
 
           // Ask again what to do
           const secondResponse = promptForUuid(project);
-          if (secondResponse.action !== "create") {
+          if (secondResponse.action === "search") {
+            // Handle search action
+            const selectedRecord = await selectRecordInteractively(
+              nocodbRecords,
+              project,
+            );
+            if (selectedRecord) {
+              matchingRecord = selectedRecord;
+              // Update the selected record with project data (same as match logic)
+              const updates: Partial<NocoDBRecord> = {};
+
+              // Update UUID
+              if (selectedRecord["Things UUID"] !== undefined) {
+                updates["Things UUID"] = project.id;
+              } else if (selectedRecord["things_uuid"] !== undefined) {
+                updates["things_uuid"] = project.id;
+              } else if (selectedRecord["UUID"] !== undefined) {
+                updates["UUID"] = project.id;
+              } else {
+                updates["Things UUID"] = project.id;
+              }
+
+              // Update Project Name
+              if (selectedRecord["Project Name"] !== undefined) {
+                updates["Project Name"] = project.title;
+              } else if (selectedRecord["project_name"] !== undefined) {
+                updates["project_name"] = project.title;
+              } else {
+                updates["Project Name"] = project.title;
+              }
+
+              // Update Goal field
+              const goalValue = project.notes || "";
+              if (selectedRecord["Goal"] !== undefined) {
+                updates["Goal"] = goalValue;
+              } else if (selectedRecord["goal"] !== undefined) {
+                updates["goal"] = goalValue;
+              } else if (selectedRecord["Notes"] !== undefined) {
+                updates["Notes"] = goalValue;
+              } else if (selectedRecord["notes"] !== undefined) {
+                updates["notes"] = goalValue;
+              } else {
+                updates["Goal"] = goalValue;
+              }
+
+              // Update Area field if available
+              if (project.area) {
+                if (selectedRecord["Area"] !== undefined) {
+                  updates["Area"] = project.area;
+                } else if (selectedRecord["area"] !== undefined) {
+                  updates["area"] = project.area;
+                } else {
+                  updates["Area"] = project.area;
+                }
+              }
+
+              const recordId = await nocodb.getRecordId(selectedRecord);
+
+              if (flags.debug) {
+                printDebugSyncData(updates);
+              }
+
+              const result = await nocodb.updateRecord(recordId, updates);
+
+              if (flags.debug) {
+                printDebugHttpResponse(200, "OK", result);
+              }
+
+              console.log(
+                green(
+                  `✓ Linked and updated record for project: ${project.title}`,
+                ),
+              );
+              updated++;
+              synced++;
+              continue;
+            } else {
+              console.log(yellow(`- Skipped project: ${project.title}`));
+              synced++;
+              continue;
+            }
+          } else if (secondResponse.action !== "create") {
             console.log(yellow(`- Skipped project: ${project.title}`));
             synced++;
             continue;
@@ -326,6 +408,87 @@ export async function projectSyncCommand(
           console.log(yellow(`- Skipped project: ${project.title}`));
           synced++;
           continue;
+        } else if (response.action === "search") {
+          // Handle search action
+          const selectedRecord = await selectRecordInteractively(
+            nocodbRecords,
+            project,
+          );
+          if (selectedRecord) {
+            matchingRecord = selectedRecord;
+            // Update the selected record with project data
+            const updates: Partial<NocoDBRecord> = {};
+
+            // Update UUID
+            if (selectedRecord["Things UUID"] !== undefined) {
+              updates["Things UUID"] = project.id;
+            } else if (selectedRecord["things_uuid"] !== undefined) {
+              updates["things_uuid"] = project.id;
+            } else if (selectedRecord["UUID"] !== undefined) {
+              updates["UUID"] = project.id;
+            } else {
+              updates["Things UUID"] = project.id;
+            }
+
+            // Update Project Name
+            if (selectedRecord["Project Name"] !== undefined) {
+              updates["Project Name"] = project.title;
+            } else if (selectedRecord["project_name"] !== undefined) {
+              updates["project_name"] = project.title;
+            } else {
+              updates["Project Name"] = project.title;
+            }
+
+            // Update Goal field
+            const goalValue = project.notes || "";
+            if (selectedRecord["Goal"] !== undefined) {
+              updates["Goal"] = goalValue;
+            } else if (selectedRecord["goal"] !== undefined) {
+              updates["goal"] = goalValue;
+            } else if (selectedRecord["Notes"] !== undefined) {
+              updates["Notes"] = goalValue;
+            } else if (selectedRecord["notes"] !== undefined) {
+              updates["notes"] = goalValue;
+            } else {
+              updates["Goal"] = goalValue;
+            }
+
+            // Update Area field if available
+            if (project.area) {
+              if (selectedRecord["Area"] !== undefined) {
+                updates["Area"] = project.area;
+              } else if (selectedRecord["area"] !== undefined) {
+                updates["area"] = project.area;
+              } else {
+                updates["Area"] = project.area;
+              }
+            }
+
+            const recordId = await nocodb.getRecordId(selectedRecord);
+
+            if (flags.debug) {
+              printDebugSyncData(updates);
+            }
+
+            const result = await nocodb.updateRecord(recordId, updates);
+
+            if (flags.debug) {
+              printDebugHttpResponse(200, "OK", result);
+            }
+
+            console.log(
+              green(
+                `✓ Linked and updated record for project: ${project.title}`,
+              ),
+            );
+            updated++;
+            synced++;
+            continue;
+          } else {
+            console.log(yellow(`- Skipped project: ${project.title}`));
+            synced++;
+            continue;
+          }
         }
 
         // Create the record
@@ -498,9 +661,153 @@ function cleanAreaName(areaName?: string): string | undefined {
   return cleaned.length > 0 ? cleaned : undefined;
 }
 
+/**
+ * Simple fuzzy search implementation
+ * Scores records based on how well they match the search query
+ */
+function fuzzySearch(
+  records: NocoDBRecord[],
+  query: string,
+): Array<{ record: NocoDBRecord; score: number; displayName: string }> {
+  if (!query || query.trim() === "") {
+    return records.map((record) => ({
+      record,
+      score: 0,
+      displayName: getRecordDisplayName(record),
+    }));
+  }
+
+  const queryLower = query.toLowerCase();
+  const results = records.map((record) => {
+    const displayName = getRecordDisplayName(record);
+    const nameLower = displayName.toLowerCase();
+
+    // Calculate score based on:
+    // 1. Exact match (highest score)
+    // 2. Starts with query
+    // 3. Contains query
+    // 4. Contains all characters in order (fuzzy match)
+    let score = 0;
+
+    if (nameLower === queryLower) {
+      score = 1000;
+    } else if (nameLower.startsWith(queryLower)) {
+      score = 500;
+    } else if (nameLower.includes(queryLower)) {
+      score = 250;
+    } else {
+      // Fuzzy match: check if all query characters appear in order
+      let queryIndex = 0;
+      for (
+        let i = 0;
+        i < nameLower.length && queryIndex < queryLower.length;
+        i++
+      ) {
+        if (nameLower[i] === queryLower[queryIndex]) {
+          queryIndex++;
+          score += 10;
+        }
+      }
+      if (queryIndex < queryLower.length) {
+        score = 0; // Not all characters found
+      }
+    }
+
+    return { record, score, displayName };
+  });
+
+  return results.filter((r) => r.score > 0).sort((a, b) => b.score - a.score);
+}
+
+/**
+ * Get a display name for a NocoDB record
+ */
+function getRecordDisplayName(record: NocoDBRecord): string {
+  const id = record.Id || record.id || record.ID || "?";
+  const name = record["Project Name"] || record["Title"] ||
+    record["project_name"] || record["title"] || record["Name"] ||
+    record["name"] || `Record ${id}`;
+  return `${name} (ID: ${id})`;
+}
+
+/**
+ * Interactive record selector with fuzzy search
+ */
+async function selectRecordInteractively(
+  records: NocoDBRecord[],
+  project: ThingsProject,
+): Promise<NocoDBRecord | null> {
+  console.log(
+    cyan(
+      `\n🔍 Search for a record to link with "${project.title}" (${records.length} records available)`,
+    ),
+  );
+  console.log(
+    cyan(
+      "Type to filter, use arrow keys to select, Enter to confirm, Ctrl+C to cancel\n",
+    ),
+  );
+
+  // Use Input prompt for search with dynamic suggestions
+  const searchQuery = await Input.prompt({
+    message: "Search records:",
+    suggestions: records.map(getRecordDisplayName),
+    list: true,
+  });
+
+  if (!searchQuery) {
+    return null;
+  }
+
+  // Filter records based on search
+  const matchedRecords = fuzzySearch(records, searchQuery);
+
+  if (matchedRecords.length === 0) {
+    console.log(yellow("No records match your search."));
+    return null;
+  }
+
+  // If only one match, ask for confirmation
+  if (matchedRecords.length === 1) {
+    const confirmSelection = await Select.prompt({
+      message: `Found 1 matching record. Select it?`,
+      options: [
+        { name: `✓ ${matchedRecords[0].displayName}`, value: "yes" },
+        { name: "✗ Cancel", value: "no" },
+      ],
+    });
+
+    if (confirmSelection === "yes") {
+      return matchedRecords[0].record;
+    }
+    return null;
+  }
+
+  // Multiple matches, show selection menu
+  const selection = await Select.prompt({
+    message: `Found ${matchedRecords.length} matching records. Select one:`,
+    options: [
+      ...matchedRecords.slice(0, 20).map((item) => ({
+        name: item.displayName,
+        value: item.record,
+      })),
+      ...(matchedRecords.length > 20
+        ? [{
+          name: "--- (showing top 20 results) ---",
+          value: null,
+          disabled: true,
+        }]
+        : []),
+      { name: "✗ Cancel", value: null },
+    ],
+  });
+
+  return selection as NocoDBRecord | null;
+}
+
 function promptForUuid(
   project: ThingsProject,
-): { action: "create" | "skip" | "debug" } {
+): { action: "create" | "skip" | "debug" | "search" } {
   console.log(
     yellow(`\nNo matching record found for project: "${project.title}"`),
   );
@@ -519,7 +826,7 @@ function promptForUuid(
   }
 
   const input = prompt(
-    "Create new record? [y/N/s to skip all/d to debug]: ",
+    "Options: [y]Create new / [f]Find & select / [s]Skip all / [d]Debug / [N]Skip: ",
   );
 
   if (input?.toLowerCase() === "s") {
@@ -528,6 +835,10 @@ function promptForUuid(
 
   if (input?.toLowerCase() === "d") {
     return { action: "debug" };
+  }
+
+  if (input?.toLowerCase() === "f" || input?.toLowerCase() === "find") {
+    return { action: "search" };
   }
 
   if (input?.toLowerCase() === "y" || input?.toLowerCase() === "yes") {
@@ -645,11 +956,20 @@ ${bold("DEBUG MODE:")}
 
 ${bold("INTERACTIVE PROMPTS:")}
   When no matching record is found, you'll be prompted:
-  • "Create new record? [y/N/s/d]"
-    - y: Create the record
-    - N: Skip this record (default)
+  • "Options: [y]Create new / [f]Find & select / [s]Skip all / [d]Debug / [N]Skip"
+    - y: Create a new record for this project
+    - f: Search and select an existing record to link (interactive fuzzy search)
     - s: Skip all remaining records
     - d: Show debug info for this record, then ask again
+    - N: Skip this record (default)
+
+  ${bold("Find & Select Mode:")}
+  • Type to search through all NocoDB records with fuzzy matching
+  • See real-time filtered results as you type
+  • Use arrow keys to navigate through matching records
+  • Press Enter to select and link a record
+  • Handles 100+ records efficiently with top 20 results shown
+  • Selected record will be updated with project UUID and data
 
 ${bold("EXAMPLES:")}
   nocodb-things                  # Sync all projects (default)

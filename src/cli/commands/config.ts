@@ -122,7 +122,9 @@ async function setConfig(
   if (flags["base-id"]) {
     config.set("baseId", String(flags["base-id"]));
   } else if (flags.set) {
-    const baseId = prompt("NocoDB Base ID (optional, leave empty to auto-detect):");
+    const baseId = prompt(
+      "NocoDB Base ID (optional, leave empty to auto-detect):",
+    );
     if (baseId) config.set("baseId", baseId);
   }
 
