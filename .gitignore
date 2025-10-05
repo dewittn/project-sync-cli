@@ -1,0 +1,15 @@
+# Debug output directory
+.nocodb-things-debug/
+
+# OS files
+.DS_Store
+*.swp
+*.swo
+*~
+
+# IDE
+.vscode/
+.idea/
+
+# Deno
+.deno/

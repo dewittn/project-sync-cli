@@ -89,6 +89,56 @@ export async function projectSyncCommand(
     const nocodbRecords = await nocodb.getRecords();
     console.log(`Found ${nocodbRecords.length} records in NocoDB`);
 
+    // Debug mode: Show list of records and save to file
+    if (flags.debug) {
+      console.log(cyan(bold("\n📋 NocoDB Records Found:")));
+
+      // Display project names from records
+      const projectNames = nocodbRecords.map((record, index) => {
+        // Try different field names for project name
+        const name = record["Project Name"] || record["Title"] ||
+          record["project_name"] || record["title"] || record["Name"] ||
+          record["name"] || `Record ${index + 1}`;
+        return `  ${index + 1}. ${name}`;
+      });
+
+      if (projectNames.length > 0) {
+        console.log(cyan(projectNames.join("\n")));
+      } else {
+        console.log(cyan("  (no records found)"));
+      }
+
+      // Save full records to JSON file
+      const debugDir = ".nocodb-things-debug";
+      const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+      const debugFilePath = `${debugDir}/nocodb-records-${timestamp}.json`;
+
+      try {
+        // Create debug directory if it doesn't exist
+        await Deno.mkdir(debugDir, { recursive: true });
+
+        // Write records to JSON file
+        await Deno.writeTextFile(
+          debugFilePath,
+          JSON.stringify(nocodbRecords, null, 2),
+        );
+
+        console.log(
+          cyan(
+            `\n  📁 Full response saved to: ${debugFilePath}`,
+          ),
+        );
+      } catch (error) {
+        console.log(
+          yellow(
+            `\n  ⚠️  Could not save debug file: ${
+              error instanceof Error ? error.message : String(error)
+            }`,
+          ),
+        );
+      }
+    }
+
     let synced = 0;
     let created = 0;
     let updated = 0;
@@ -528,6 +578,8 @@ ${bold("BEHAVIOR:")}
 ${bold("DEBUG MODE:")}
   • Process one project at a time with confirmation prompts
   • Display NocoDB API query parameters (GET request details)
+  • List all NocoDB records found (project names only)
+  • Save full NocoDB response to .nocodb-things-debug/ directory
   • Display Things project data before sync
   • Display two-step search process (UUID → Title)
   • Show which NocoDB fields are being checked
