@@ -470,7 +470,7 @@ function printDebugSearchCriteria(
   // Show equivalent NocoDB where clause
   if (fields.length > 0) {
     const whereConditions = fields.map((field) =>
-      `(${field},eq,${searchValue})`
+      `('${field}',eq,'${searchValue}')`
     );
     const whereClause = whereConditions.join("~or");
     console.log(cyan(bold("\n  Equivalent NocoDB query parameter:")));
