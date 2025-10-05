@@ -580,8 +580,19 @@ async function getThingsProjects(): Promise<ThingsProject[]> {
           -- No repeater property means not recurring
         end try
 
-        -- Only include non-recurring projects
-        if not isRecurring then
+        -- Check if project is completed
+        set isCompleted to false
+        try
+          set projStatus to status of proj
+          if projStatus is completed then
+            set isCompleted to true
+          end if
+        on error
+          -- If we can't get status, assume not completed
+        end try
+
+        -- Only include non-recurring and non-completed projects
+        if not isRecurring and not isCompleted then
           set projId to id of proj as string
           set projTitle to name of proj as string
           set projNotes to ""
@@ -954,6 +965,8 @@ ${bold("OPTIONS:")}
 
 ${bold("BEHAVIOR:")}
   • One-way sync: Things projects → NocoDB records
+  • Excludes completed projects (only syncs active projects)
+  • Excludes recurring projects
   • Fetches ALL records from NocoDB using pagination (100 per request)
   • Two-step matching: First by Things UUID, then by Title (fallback)
   • Uses field mappings from config for flexible field names
