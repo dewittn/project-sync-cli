@@ -282,11 +282,6 @@ export async function projectSyncCommand(
         if (needsUpdate) {
           const recordId = await nocodb.getRecordId(matchingRecord);
 
-          // Verbose mode: show sync data
-          if (flags.verbose) {
-            printVerboseSync(project, "update", updates, recordId);
-          }
-
           // Debug mode: show data being sent
           if (flags.debug) {
             printDebugSyncData(updates);
@@ -299,12 +294,14 @@ export async function projectSyncCommand(
             printDebugHttpResponse(200, "OK", result);
           }
 
-          if (!flags.verbose) {
+          // Verbose mode: show sync data with response
+          if (flags.verbose) {
+            printVerboseSync(project, "update", updates, recordId, result);
+            console.log(green(`✓ Successfully updated`));
+          } else {
             console.log(
               green(`✓ Updated record for project: ${project.title}`),
             );
-          } else {
-            console.log(green(`✓ Successfully updated`));
           }
           updated++;
         } else if (globalFlags.verbose) {
@@ -390,11 +387,6 @@ export async function projectSyncCommand(
 
               const recordId = await nocodb.getRecordId(selectedRecord);
 
-              // Verbose mode: show sync data
-              if (flags.verbose) {
-                printVerboseSync(project, "link", updates, recordId);
-              }
-
               if (flags.debug) {
                 printDebugSyncData(updates);
               }
@@ -405,14 +397,16 @@ export async function projectSyncCommand(
                 printDebugHttpResponse(200, "OK", result);
               }
 
-              if (!flags.verbose) {
+              // Verbose mode: show sync data with response
+              if (flags.verbose) {
+                printVerboseSync(project, "link", updates, recordId, result);
+                console.log(green(`✓ Successfully linked and updated`));
+              } else {
                 console.log(
                   green(
                     `✓ Linked and updated record for project: ${project.title}`,
                   ),
                 );
-              } else {
-                console.log(green(`✓ Successfully linked and updated`));
               }
               updated++;
               synced++;
@@ -488,11 +482,6 @@ export async function projectSyncCommand(
 
             const recordId = await nocodb.getRecordId(selectedRecord);
 
-            // Verbose mode: show sync data
-            if (flags.verbose) {
-              printVerboseSync(project, "link", updates, recordId);
-            }
-
             if (flags.debug) {
               printDebugSyncData(updates);
             }
@@ -503,14 +492,16 @@ export async function projectSyncCommand(
               printDebugHttpResponse(200, "OK", result);
             }
 
-            if (!flags.verbose) {
+            // Verbose mode: show sync data with response
+            if (flags.verbose) {
+              printVerboseSync(project, "link", updates, recordId, result);
+              console.log(green(`✓ Successfully linked and updated`));
+            } else {
               console.log(
                 green(
                   `✓ Linked and updated record for project: ${project.title}`,
                 ),
               );
-            } else {
-              console.log(green(`✓ Successfully linked and updated`));
             }
             updated++;
             synced++;
@@ -534,11 +525,6 @@ export async function projectSyncCommand(
           newRecord.Area = project.area;
         }
 
-        // Verbose mode: show sync data
-        if (flags.verbose) {
-          printVerboseSync(project, "create", newRecord);
-        }
-
         // Debug mode: show data being sent
         if (flags.debug) {
           printDebugSyncData(newRecord);
@@ -551,12 +537,14 @@ export async function projectSyncCommand(
           printDebugHttpResponse(201, "Created", result);
         }
 
-        if (!flags.verbose) {
+        // Verbose mode: show sync data with response
+        if (flags.verbose) {
+          printVerboseSync(project, "create", newRecord, undefined, result);
+          console.log(green(`✓ Successfully created`));
+        } else {
           console.log(
             green(`✓ Created new record for project: ${project.title}`),
           );
-        } else {
-          console.log(green(`✓ Successfully created`));
         }
         created++;
       }
@@ -936,6 +924,7 @@ function printVerboseSync(
   operation: "create" | "update" | "link",
   updates: Partial<NocoDBRecord>,
   recordId?: string,
+  response?: unknown,
 ): void {
   console.log("");
   console.log(bold(`Syncing: "${project.title}"`));
@@ -983,6 +972,22 @@ function printVerboseSync(
     console.log(
       `  ${thingsField.padEnd(12)} → ${field.padEnd(15)} : ${displayValue}`,
     );
+  }
+
+  // Display HTTP response if provided
+  if (response) {
+    console.log("");
+    console.log(bold("NocoDB Response:"));
+    try {
+      const responseStr = JSON.stringify(response, null, 2);
+      // Indent each line
+      const indentedResponse = responseStr.split("\n").map((line) =>
+        `  ${line}`
+      ).join("\n");
+      console.log(cyan(indentedResponse));
+    } catch {
+      console.log(cyan(`  ${String(response)}`));
+    }
   }
 
   console.log("");
