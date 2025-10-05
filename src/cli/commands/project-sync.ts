@@ -1,5 +1,5 @@
 import { parseArgs } from "@std/cli/parse-args";
-import { bold, green, yellow } from "@std/fmt/colors";
+import { bold, cyan, green, yellow } from "@std/fmt/colors";
 import { ConfigManager } from "../../config/manager.ts";
 import { NocoDBClient, NocoDBRecord } from "../../api/nocodb.ts";
 
@@ -15,7 +15,7 @@ export async function projectSyncCommand(
   globalFlags: Record<string, unknown>,
 ): Promise<void> {
   const flags = parseArgs(args, {
-    boolean: ["help", "dry-run"],
+    boolean: ["help", "dry-run", "debug"],
     alias: {
       h: "help",
     },
@@ -59,6 +59,11 @@ export async function projectSyncCommand(
         continue;
       }
 
+      // Debug mode: show project data before processing
+      if (flags.debug) {
+        printDebugThingsProject(project);
+      }
+
       if (globalFlags.verbose) {
         console.log(`Processing project: ${project.title}`);
       }
@@ -67,6 +72,11 @@ export async function projectSyncCommand(
       const matchingRecord = nocodbRecords.find((record: NocoDBRecord) =>
         record.Title === project.title || record.title === project.title
       );
+
+      // Debug mode: show matched record
+      if (flags.debug) {
+        printDebugMatchedRecord(matchingRecord || null);
+      }
 
       if (matchingRecord) {
         // Update the Things UUID field if it's different
@@ -130,7 +140,19 @@ export async function projectSyncCommand(
 
         if (needsUpdate) {
           const recordId = await nocodb.getRecordId(matchingRecord);
-          await nocodb.updateRecord(recordId, updates);
+
+          // Debug mode: show data being sent
+          if (flags.debug) {
+            printDebugSyncData(updates);
+          }
+
+          const result = await nocodb.updateRecord(recordId, updates);
+
+          // Debug mode: show HTTP response
+          if (flags.debug) {
+            printDebugHttpResponse(200, "OK", result);
+          }
+
           console.log(green(`✓ Updated record for project: ${project.title}`));
           updated++;
         } else if (globalFlags.verbose) {
@@ -152,7 +174,18 @@ export async function projectSyncCommand(
             newRecord.Area = project.area;
           }
 
-          await nocodb.createRecord(newRecord);
+          // Debug mode: show data being sent
+          if (flags.debug) {
+            printDebugSyncData(newRecord);
+          }
+
+          const result = await nocodb.createRecord(newRecord);
+
+          // Debug mode: show HTTP response
+          if (flags.debug) {
+            printDebugHttpResponse(201, "Created", result);
+          }
+
           console.log(
             green(`✓ Created new record for project: ${project.title}`),
           );
@@ -163,6 +196,14 @@ export async function projectSyncCommand(
       }
 
       synced++;
+
+      // Debug mode: confirm before continuing to next project
+      if (flags.debug && synced < thingsProjects.length) {
+        if (!confirmContinue()) {
+          console.log(yellow("\nSync stopped by user."));
+          break;
+        }
+      }
     }
 
     console.log(green(bold("✓ Sync completed successfully!")));
@@ -321,6 +362,44 @@ function promptForUuid(project: ThingsProject): boolean {
   return input?.toLowerCase() === "y" || input?.toLowerCase() === "yes";
 }
 
+function printDebugThingsProject(project: ThingsProject): void {
+  console.log(cyan(bold("\n📋 Things Project Data:")));
+  console.log(cyan(`  Title: ${project.title}`));
+  console.log(cyan(`  ID: ${project.id}`));
+  console.log(cyan(`  Notes: ${project.notes || "(none)"}`));
+  console.log(cyan(`  Area: ${project.area || "(none)"}`));
+}
+
+function printDebugSyncData(data: Partial<NocoDBRecord>): void {
+  console.log(cyan(bold("\n📤 Data being sent to NocoDB:")));
+  console.log(cyan(JSON.stringify(data, null, 2)));
+}
+
+function printDebugMatchedRecord(record: NocoDBRecord | null): void {
+  if (record) {
+    console.log(cyan(bold("\n🔍 Matched NocoDB Record:")));
+    console.log(cyan(JSON.stringify(record, null, 2)));
+  } else {
+    console.log(cyan(bold("\n🔍 Matched NocoDB Record:")));
+    console.log(cyan("  (no match found)"));
+  }
+}
+
+function printDebugHttpResponse(
+  status: number,
+  statusText: string,
+  body: unknown,
+): void {
+  console.log(cyan(bold("\n📡 HTTP Response from NocoDB:")));
+  console.log(cyan(`  Status: ${status} ${statusText}`));
+  console.log(cyan(`  Body: ${JSON.stringify(body, null, 2)}`));
+}
+
+function confirmContinue(): boolean {
+  const input = prompt(yellow("\nContinue to next project? (y/n): "));
+  return input?.toLowerCase() === "y" || input?.toLowerCase() === "yes";
+}
+
 function printProjectSyncHelp(): void {
   console.log(`
 ${bold("SYNC COMMAND")}
@@ -332,6 +411,7 @@ ${bold("USAGE:")}
 ${bold("OPTIONS:")}
   -h, --help              Show this help message
   --dry-run               Preview changes without applying them
+  --debug                 Enable debug mode with step-by-step confirmation
 
 ${bold("BEHAVIOR:")}
   • One-way sync: Things projects → NocoDB records
@@ -340,9 +420,17 @@ ${bold("BEHAVIOR:")}
   • Creates new records for unmatched projects
   • Project notes update the Goal field
 
+${bold("DEBUG MODE:")}
+  • Process one project at a time with confirmation prompts
+  • Display Things project data before sync
+  • Display data being sent to NocoDB
+  • Display matched NocoDB record (if found)
+  • Display full HTTP response from NocoDB
+
 ${bold("EXAMPLES:")}
   nocodb-things                  # Sync all projects (default)
   nocodb-things sync             # Sync all projects
   nocodb-things sync --dry-run   # Preview changes only
+  nocodb-things sync --debug     # Debug mode with step-by-step confirmation
 `);
 }
