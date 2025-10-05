@@ -12,7 +12,8 @@
       "Bash(osascript:*)",
       "WebFetch(domain:github.com)",
       "Read(//Users/dewittn/.nocodb-things/**)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(deno fmt:*)"
     ],
     "deny": [],
     "ask": []
