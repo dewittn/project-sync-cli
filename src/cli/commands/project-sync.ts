@@ -277,29 +277,15 @@ export async function projectSyncCommand(
         if (needsUpdate) {
           const recordId = await nocodb.getRecordId(matchingRecord);
 
-          // Interactive debug prompt for updates (non-debug mode only)
-          let showDebug = flags.debug;
-          if (!flags.debug && !flags["dry-run"]) {
-            showDebug = promptForDebug();
-          }
-
-          // Show debug info if requested
-          if (showDebug) {
-            printDebugThingsProject(project);
-            printDebugSearchCriteria(
-              matchingRecord ? "uuid" : "title",
-              matchingRecord ? project.id : project.title,
-              matchingRecord ? uuidFields : titleFields,
-              nocodbRecords.length,
-            );
-            printDebugMatchedRecord(matchingRecord);
+          // Debug mode: show data being sent
+          if (flags.debug) {
             printDebugSyncData(updates);
           }
 
           const result = await nocodb.updateRecord(recordId, updates);
 
-          // Show HTTP response if debug mode
-          if (showDebug) {
+          // Debug mode: show HTTP response
+          if (flags.debug) {
             printDebugHttpResponse(200, "OK", result);
           }
 
@@ -512,11 +498,6 @@ function cleanAreaName(areaName?: string): string | undefined {
   return cleaned.length > 0 ? cleaned : undefined;
 }
 
-function promptForDebug(): boolean {
-  const input = prompt(yellow("Debug this sync? (y/n): "));
-  return input?.toLowerCase() === "y" || input?.toLowerCase() === "yes";
-}
-
 function promptForUuid(
   project: ThingsProject,
 ): { action: "create" | "skip" | "debug" } {
@@ -643,8 +624,7 @@ ${bold("BEHAVIOR:")}
   • Fetches ALL records from NocoDB using pagination (100 per request)
   • Two-step matching: First by Things UUID, then by Title (fallback)
   • Uses field mappings from config for flexible field names
-  • Interactive prompts for updates and new records
-  • Option to debug individual records during sync
+  • Interactive prompt when creating new records (with debug option)
   • Updates Things UUID in NocoDB records
   • Creates new records for unmatched projects
   • Project notes update the Goal field
@@ -664,13 +644,12 @@ ${bold("DEBUG MODE:")}
   • Display full HTTP response from NocoDB
 
 ${bold("INTERACTIVE PROMPTS:")}
-  During normal sync, you'll be prompted:
-  • "Debug this sync? (y/n)" - Before updating a matched record
-  • "Create new record? [y/N/s/d]" - When no match found
+  When no matching record is found, you'll be prompted:
+  • "Create new record? [y/N/s/d]"
     - y: Create the record
     - N: Skip this record (default)
     - s: Skip all remaining records
-    - d: Show debug info, then ask again
+    - d: Show debug info for this record, then ask again
 
 ${bold("EXAMPLES:")}
   nocodb-things                  # Sync all projects (default)
