@@ -13,7 +13,8 @@
       "WebFetch(domain:github.com)",
       "Read(//Users/dewittn/.nocodb-things/**)",
       "Bash(cat:*)",
-      "Bash(deno fmt:*)"
+      "Bash(deno fmt:*)",
+      "Bash(deno check:*)"
     ],
     "deny": [],
     "ask": []
