@@ -71,6 +71,21 @@ export async function projectSyncCommand(
     console.log(`Found ${thingsProjects.length} projects in Things`);
 
     // Get all records from NocoDB
+    if (flags.debug) {
+      console.log(cyan(bold("\n🔗 NocoDB Initial Query:")));
+      console.log(
+        cyan(
+          `  GET ${config.get("nocodbUrl")}/api/v2/tables/{tableId}/records`,
+        ),
+      );
+      console.log(cyan("  Query parameters:"));
+      console.log(cyan("    limit: 100 (default)"));
+      console.log(cyan("    offset: 0 (default)"));
+      console.log(
+        cyan("  Note: Fetching all records for client-side matching"),
+      );
+    }
+
     const nocodbRecords = await nocodb.getRecords();
     console.log(`Found ${nocodbRecords.length} records in NocoDB`);
 
@@ -451,6 +466,17 @@ function printDebugSearchCriteria(
     cyan(`  Checking fields: ${fields.map((f) => `record.${f}`).join(" OR ")}`),
   );
   console.log(cyan(`  Total records to search: ${totalRecords}`));
+
+  // Show equivalent NocoDB where clause
+  if (fields.length > 0) {
+    const whereConditions = fields.map((field) =>
+      `(${field},eq,${searchValue})`
+    );
+    const whereClause = whereConditions.join("~or");
+    console.log(cyan(bold("\n  Equivalent NocoDB query parameter:")));
+    console.log(cyan(`    where=${whereClause}`));
+    console.log(cyan(`  Note: Currently using client-side filtering`));
+  }
 }
 
 function printDebugMatchedRecord(record: NocoDBRecord | null): void {
@@ -501,9 +527,11 @@ ${bold("BEHAVIOR:")}
 
 ${bold("DEBUG MODE:")}
   • Process one project at a time with confirmation prompts
+  • Display NocoDB API query parameters (GET request details)
   • Display Things project data before sync
   • Display two-step search process (UUID → Title)
   • Show which NocoDB fields are being checked
+  • Show equivalent NocoDB where clause for each search
   • Display matched NocoDB record (if found)
   • Display data being sent to NocoDB
   • Display full HTTP response from NocoDB
