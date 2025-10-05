@@ -277,15 +277,29 @@ export async function projectSyncCommand(
         if (needsUpdate) {
           const recordId = await nocodb.getRecordId(matchingRecord);
 
-          // Debug mode: show data being sent
-          if (flags.debug) {
+          // Interactive debug prompt for updates (non-debug mode only)
+          let showDebug = flags.debug;
+          if (!flags.debug && !flags["dry-run"]) {
+            showDebug = promptForDebug();
+          }
+
+          // Show debug info if requested
+          if (showDebug) {
+            printDebugThingsProject(project);
+            printDebugSearchCriteria(
+              matchingRecord ? "uuid" : "title",
+              matchingRecord ? project.id : project.title,
+              matchingRecord ? uuidFields : titleFields,
+              nocodbRecords.length,
+            );
+            printDebugMatchedRecord(matchingRecord);
             printDebugSyncData(updates);
           }
 
           const result = await nocodb.updateRecord(recordId, updates);
 
-          // Debug mode: show HTTP response
-          if (flags.debug) {
+          // Show HTTP response if debug mode
+          if (showDebug) {
             printDebugHttpResponse(200, "OK", result);
           }
 
@@ -295,40 +309,67 @@ export async function projectSyncCommand(
           console.log(`- Project "${project.title}" already has correct UUID`);
         }
       } else {
-        // No match found, prompt user for UUID (skippable)
-        const shouldCreateRecord = promptForUuid(project);
+        // No match found, prompt user for create/skip/debug
+        const response = promptForUuid(project);
 
-        if (shouldCreateRecord) {
-          const newRecord: Partial<NocoDBRecord> = {
-            Title: project.title,
-            "Project Name": project.title,
-            "Things UUID": project.id,
-            Goal: project.notes || "",
-          };
-
-          if (project.area) {
-            newRecord.Area = project.area;
-          }
-
-          // Debug mode: show data being sent
-          if (flags.debug) {
-            printDebugSyncData(newRecord);
-          }
-
-          const result = await nocodb.createRecord(newRecord);
-
-          // Debug mode: show HTTP response
-          if (flags.debug) {
-            printDebugHttpResponse(201, "Created", result);
-          }
-
-          console.log(
-            green(`✓ Created new record for project: ${project.title}`),
+        if (response.action === "debug") {
+          // Show debug info
+          printDebugThingsProject(project);
+          printDebugSearchCriteria(
+            "uuid",
+            project.id,
+            uuidFields,
+            nocodbRecords.length,
           );
-          created++;
-        } else {
+          printDebugSearchCriteria(
+            "title",
+            project.title,
+            titleFields,
+            nocodbRecords.length,
+          );
+          printDebugMatchedRecord(null);
+
+          // Ask again what to do
+          const secondResponse = promptForUuid(project);
+          if (secondResponse.action !== "create") {
+            console.log(yellow(`- Skipped project: ${project.title}`));
+            synced++;
+            continue;
+          }
+        } else if (response.action === "skip") {
           console.log(yellow(`- Skipped project: ${project.title}`));
+          synced++;
+          continue;
         }
+
+        // Create the record
+        const newRecord: Partial<NocoDBRecord> = {
+          Title: project.title,
+          "Project Name": project.title,
+          "Things UUID": project.id,
+          Goal: project.notes || "",
+        };
+
+        if (project.area) {
+          newRecord.Area = project.area;
+        }
+
+        // Debug mode: show data being sent
+        if (flags.debug) {
+          printDebugSyncData(newRecord);
+        }
+
+        const result = await nocodb.createRecord(newRecord);
+
+        // Debug mode: show HTTP response
+        if (flags.debug) {
+          printDebugHttpResponse(201, "Created", result);
+        }
+
+        console.log(
+          green(`✓ Created new record for project: ${project.title}`),
+        );
+        created++;
       }
 
       synced++;
@@ -471,7 +512,14 @@ function cleanAreaName(areaName?: string): string | undefined {
   return cleaned.length > 0 ? cleaned : undefined;
 }
 
-function promptForUuid(project: ThingsProject): boolean {
+function promptForDebug(): boolean {
+  const input = prompt(yellow("Debug this sync? (y/n): "));
+  return input?.toLowerCase() === "y" || input?.toLowerCase() === "yes";
+}
+
+function promptForUuid(
+  project: ThingsProject,
+): { action: "create" | "skip" | "debug" } {
   console.log(
     yellow(`\nNo matching record found for project: "${project.title}"`),
   );
@@ -489,14 +537,23 @@ function promptForUuid(project: ThingsProject): boolean {
     );
   }
 
-  const input = prompt("Create new record? [y/N/s to skip all remaining]: ");
+  const input = prompt(
+    "Create new record? [y/N/s to skip all/d to debug]: ",
+  );
 
   if (input?.toLowerCase() === "s") {
-    // Skip all remaining
-    return false;
+    return { action: "skip" };
   }
 
-  return input?.toLowerCase() === "y" || input?.toLowerCase() === "yes";
+  if (input?.toLowerCase() === "d") {
+    return { action: "debug" };
+  }
+
+  if (input?.toLowerCase() === "y" || input?.toLowerCase() === "yes") {
+    return { action: "create" };
+  }
+
+  return { action: "skip" };
 }
 
 function printDebugThingsProject(project: ThingsProject): void {
@@ -586,6 +643,8 @@ ${bold("BEHAVIOR:")}
   • Fetches ALL records from NocoDB using pagination (100 per request)
   • Two-step matching: First by Things UUID, then by Title (fallback)
   • Uses field mappings from config for flexible field names
+  • Interactive prompts for updates and new records
+  • Option to debug individual records during sync
   • Updates Things UUID in NocoDB records
   • Creates new records for unmatched projects
   • Project notes update the Goal field
@@ -603,6 +662,15 @@ ${bold("DEBUG MODE:")}
   • Display matched NocoDB record (if found)
   • Display data being sent to NocoDB
   • Display full HTTP response from NocoDB
+
+${bold("INTERACTIVE PROMPTS:")}
+  During normal sync, you'll be prompted:
+  • "Debug this sync? (y/n)" - Before updating a matched record
+  • "Create new record? [y/N/s/d]" - When no match found
+    - y: Create the record
+    - N: Skip this record (default)
+    - s: Skip all remaining records
+    - d: Show debug info, then ask again
 
 ${bold("EXAMPLES:")}
   nocodb-things                  # Sync all projects (default)
