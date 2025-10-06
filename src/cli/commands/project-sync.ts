@@ -296,7 +296,17 @@ export async function projectSyncCommand(
 
           // Verbose mode: show sync data with response
           if (flags.verbose) {
-            printVerboseSync(project, "update", updates, recordId, result);
+            // Construct the payload structure that was sent to NocoDB
+            // The actual payload is an array with the record ID and updates
+            const requestPayload = [{ Id: recordId, ...updates }];
+            printVerboseSync(
+              project,
+              "update",
+              updates,
+              recordId,
+              result,
+              requestPayload,
+            );
             console.log(green(`✓ Successfully updated`));
           } else {
             console.log(
@@ -399,7 +409,15 @@ export async function projectSyncCommand(
 
               // Verbose mode: show sync data with response
               if (flags.verbose) {
-                printVerboseSync(project, "link", updates, recordId, result);
+                const requestPayload = [{ Id: recordId, ...updates }];
+                printVerboseSync(
+                  project,
+                  "link",
+                  updates,
+                  recordId,
+                  result,
+                  requestPayload,
+                );
                 console.log(green(`✓ Successfully linked and updated`));
               } else {
                 console.log(
@@ -494,7 +512,15 @@ export async function projectSyncCommand(
 
             // Verbose mode: show sync data with response
             if (flags.verbose) {
-              printVerboseSync(project, "link", updates, recordId, result);
+              const requestPayload = [{ Id: recordId, ...updates }];
+              printVerboseSync(
+                project,
+                "link",
+                updates,
+                recordId,
+                result,
+                requestPayload,
+              );
               console.log(green(`✓ Successfully linked and updated`));
             } else {
               console.log(
@@ -539,7 +565,15 @@ export async function projectSyncCommand(
 
         // Verbose mode: show sync data with response
         if (flags.verbose) {
-          printVerboseSync(project, "create", newRecord, undefined, result);
+          // For create operations, the payload is the newRecord object
+          printVerboseSync(
+            project,
+            "create",
+            newRecord,
+            undefined,
+            result,
+            newRecord,
+          );
           console.log(green(`✓ Successfully created`));
         } else {
           console.log(
@@ -925,6 +959,7 @@ function printVerboseSync(
   updates: Partial<NocoDBRecord>,
   recordId?: string,
   response?: unknown,
+  requestPayload?: unknown,
 ): void {
   console.log("");
   console.log(bold(`Syncing: "${project.title}"`));
@@ -972,6 +1007,21 @@ function printVerboseSync(
     console.log(
       `  ${thingsField.padEnd(12)} → ${field.padEnd(15)} : ${displayValue}`,
     );
+  }
+
+  // Display request payload if provided
+  if (requestPayload) {
+    console.log("");
+    console.log(bold("Request Payload:"));
+    try {
+      const payloadStr = JSON.stringify(requestPayload, null, 2);
+      // Indent each line
+      const indentedPayload = payloadStr.split("\n").map((line) => `  ${line}`)
+        .join("\n");
+      console.log(cyan(indentedPayload));
+    } catch {
+      console.log(cyan(`  ${String(requestPayload)}`));
+    }
   }
 
   // Display HTTP response if provided
