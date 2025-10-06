@@ -75,8 +75,11 @@ ${bold("EXAMPLES:")}
           Deno.exit(1);
         }
         projectName = projects[projectIndex];
-      } else {
+      } else if (args.project) {
         projectName = args.project;
+      } else {
+        console.error(red("Error: No project specified"));
+        Deno.exit(1);
       }
 
       console.log(
@@ -115,7 +118,13 @@ ${bold("EXAMPLES:")}
       ),
     );
   } catch (error) {
-    console.error(red(`❌ Error fetching projects: ${error.message}`));
+    console.error(
+      red(
+        `❌ Error fetching projects: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      ),
+    );
     if (globalArgs.verbose) {
       console.error(error);
     }

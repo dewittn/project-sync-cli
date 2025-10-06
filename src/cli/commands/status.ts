@@ -81,7 +81,9 @@ export async function statusCommand(
       }
     } catch (error) {
       console.log(red("  ✗ NocoDB: Failed"));
-      console.log(`    Error: ${error.message}`);
+      console.log(
+        `    Error: ${error instanceof Error ? error.message : String(error)}`,
+      );
     }
 
     // Test Things availability
@@ -129,7 +131,10 @@ async function testNocoDBConnection(
       return { success: false, error: `HTTP ${response.status}` };
     }
   } catch (error) {
-    return { success: false, error: error.message };
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error),
+    };
   }
 }
 

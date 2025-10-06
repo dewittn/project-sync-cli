@@ -103,7 +103,9 @@ async function main(): Promise<void> {
         Deno.exit(1);
     }
   } catch (error) {
-    console.error(red(`Error: ${error.message}`));
+    console.error(
+      red(`Error: ${error instanceof Error ? error.message : String(error)}`),
+    );
     if (args.verbose) {
       console.error(error);
     }

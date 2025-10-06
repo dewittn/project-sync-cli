@@ -74,7 +74,9 @@ async function listMappings(config: ConfigManager): Promise<void> {
     } catch (error) {
       console.log(
         yellow(
-          `Warning: Could not fetch NocoDB table schema: ${error.message}`,
+          `Warning: Could not fetch NocoDB table schema: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
         ),
       );
     }

@@ -73,7 +73,11 @@ export async function testCommand(
         }
       } catch (error) {
         console.log(red("  ✗ NocoDB connection failed"));
-        console.log(`    Error: ${error.message}`);
+        console.log(
+          `    Error: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        );
         allTestsPassed = false;
       }
     }
@@ -118,7 +122,9 @@ export async function testCommand(
       }
     } catch (error) {
       console.log(red("  ✗ Things connection failed"));
-      console.log(`    Error: ${error.message}`);
+      console.log(
+        `    Error: ${error instanceof Error ? error.message : String(error)}`,
+      );
       allTestsPassed = false;
     }
   }
