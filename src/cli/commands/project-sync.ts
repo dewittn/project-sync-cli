@@ -20,7 +20,8 @@ export async function projectSyncCommand(
   globalFlags: Record<string, unknown>,
 ): Promise<void> {
   const flags = parseArgs(args, {
-    boolean: ["help", "dry-run", "debug", "verbose"],
+    boolean: ["help", "dry-run", "debug", "verbose", "verify"],
+    string: ["uuid"],
     alias: {
       h: "help",
       v: "verbose",
@@ -73,8 +74,31 @@ export async function projectSyncCommand(
 
   try {
     // Get all projects from Things
-    const thingsProjects = await getThingsProjects();
+    let thingsProjects = await getThingsProjects();
     console.log(`Found ${thingsProjects.length} projects in Things`);
+
+    // Filter by UUID if provided
+    if (flags.uuid) {
+      const targetUuid = String(flags.uuid);
+      const matchingProject = thingsProjects.find((p) => p.id === targetUuid);
+
+      if (!matchingProject) {
+        console.log(
+          red(`\n❌ No Things project found with UUID: ${targetUuid}`),
+        );
+        console.log(
+          yellow(
+            "\nTip: Use 'nocodb-things list-projects' to see all available project UUIDs",
+          ),
+        );
+        Deno.exit(1);
+      }
+
+      thingsProjects = [matchingProject];
+      console.log(
+        green(`✓ Filtering to single project: "${matchingProject.title}"`),
+      );
+    }
 
     // Get all records from NocoDB
     if (flags.debug) {
@@ -294,6 +318,29 @@ export async function projectSyncCommand(
             printDebugHttpResponse(200, "OK", result);
           }
 
+          // Verify the update if --verify flag is set
+          if (flags.verify) {
+            const verification = await verifyRecord(
+              nocodb,
+              recordId,
+              updates,
+              project.title,
+            );
+
+            if (verification.success) {
+              if (flags.verbose || flags.debug) {
+                console.log(green("  ✓ Verification passed"));
+              }
+            } else {
+              console.log(
+                yellow(`  ⚠️  Verification failed for "${project.title}":`),
+              );
+              for (const mismatch of verification.mismatches) {
+                console.log(yellow(`     - ${mismatch}`));
+              }
+            }
+          }
+
           // Verbose mode: show sync data with response
           if (flags.verbose) {
             // Construct the payload structure that was sent to NocoDB
@@ -407,6 +454,29 @@ export async function projectSyncCommand(
                 printDebugHttpResponse(200, "OK", result);
               }
 
+              // Verify the update if --verify flag is set
+              if (flags.verify) {
+                const verification = await verifyRecord(
+                  nocodb,
+                  recordId,
+                  updates,
+                  project.title,
+                );
+
+                if (verification.success) {
+                  if (flags.verbose || flags.debug) {
+                    console.log(green("  ✓ Verification passed"));
+                  }
+                } else {
+                  console.log(
+                    yellow(`  ⚠️  Verification failed for "${project.title}":`),
+                  );
+                  for (const mismatch of verification.mismatches) {
+                    console.log(yellow(`     - ${mismatch}`));
+                  }
+                }
+              }
+
               // Verbose mode: show sync data with response
               if (flags.verbose) {
                 const requestPayload = [{ Id: recordId, ...updates }];
@@ -510,6 +580,29 @@ export async function projectSyncCommand(
               printDebugHttpResponse(200, "OK", result);
             }
 
+            // Verify the update if --verify flag is set
+            if (flags.verify) {
+              const verification = await verifyRecord(
+                nocodb,
+                recordId,
+                updates,
+                project.title,
+              );
+
+              if (verification.success) {
+                if (flags.verbose || flags.debug) {
+                  console.log(green("  ✓ Verification passed"));
+                }
+              } else {
+                console.log(
+                  yellow(`  ⚠️  Verification failed for "${project.title}":`),
+                );
+                for (const mismatch of verification.mismatches) {
+                  console.log(yellow(`     - ${mismatch}`));
+                }
+              }
+            }
+
             // Verbose mode: show sync data with response
             if (flags.verbose) {
               const requestPayload = [{ Id: recordId, ...updates }];
@@ -561,6 +654,40 @@ export async function projectSyncCommand(
         // Debug mode: show HTTP response
         if (flags.debug) {
           printDebugHttpResponse(201, "Created", result);
+        }
+
+        // Verify the created record if --verify flag is set
+        if (flags.verify) {
+          try {
+            const createdRecordId = await nocodb.getRecordId(result);
+            const verification = await verifyRecord(
+              nocodb,
+              createdRecordId,
+              newRecord,
+              project.title,
+            );
+
+            if (verification.success) {
+              if (flags.verbose || flags.debug) {
+                console.log(green("  ✓ Verification passed"));
+              }
+            } else {
+              console.log(
+                yellow(`  ⚠️  Verification failed for "${project.title}":`),
+              );
+              for (const mismatch of verification.mismatches) {
+                console.log(yellow(`     - ${mismatch}`));
+              }
+            }
+          } catch (error) {
+            console.log(
+              yellow(
+                `  ⚠️  Could not verify created record: ${
+                  error instanceof Error ? error.message : String(error)
+                }`,
+              ),
+            );
+          }
         }
 
         // Verbose mode: show sync data with response
@@ -1133,6 +1260,62 @@ function confirmContinue(): boolean {
   return input?.toLowerCase() === "y" || input?.toLowerCase() === "yes";
 }
 
+/**
+ * Verify that a synced record matches expected values
+ */
+async function verifyRecord(
+  nocodb: NocoDBClient,
+  recordId: string,
+  expectedUpdates: Partial<NocoDBRecord>,
+  _projectTitle: string,
+): Promise<{ success: boolean; mismatches: string[] }> {
+  try {
+    const verifiedRecord = await nocodb.getRecordById(recordId);
+
+    if (!verifiedRecord) {
+      return {
+        success: false,
+        mismatches: [`Record not found after sync`],
+      };
+    }
+
+    const mismatches: string[] = [];
+
+    for (const [field, expectedValue] of Object.entries(expectedUpdates)) {
+      const actualValue = verifiedRecord[field];
+
+      // Normalize values for comparison (handle undefined, null, empty string)
+      const normalizedExpected =
+        expectedValue === undefined || expectedValue === null
+          ? ""
+          : String(expectedValue).trim();
+      const normalizedActual = actualValue === undefined || actualValue === null
+        ? ""
+        : String(actualValue).trim();
+
+      if (normalizedExpected !== normalizedActual) {
+        mismatches.push(
+          `Field "${field}": expected "${normalizedExpected}", got "${normalizedActual}"`,
+        );
+      }
+    }
+
+    return {
+      success: mismatches.length === 0,
+      mismatches,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      mismatches: [
+        `Verification failed: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      ],
+    };
+  }
+}
+
 function printProjectSyncHelp(): void {
   console.log(`
 ${bold("SYNC COMMAND")}
@@ -1146,6 +1329,8 @@ ${bold("OPTIONS:")}
   -v, --verbose           Show detailed sync information for each project
   --dry-run               Preview changes without applying them
   --debug                 Enable debug mode with step-by-step confirmation
+  --verify                Query NocoDB after each sync to verify data accuracy
+  --uuid <uuid>           Sync only the project with the specified Things UUID
 
 ${bold("BEHAVIOR:")}
   • One-way sync: Things projects → NocoDB records
@@ -1203,13 +1388,33 @@ ${bold("INTERACTIVE PROMPTS:")}
   • Handles 100+ records efficiently with top 20 results shown
   • Selected record will be updated with project UUID and data
 
+${bold("VERIFICATION MODE:")}
+  Use --verify to validate synced data after each operation:
+  • After syncing (create/update), the record is queried back from NocoDB
+  • Each field value is compared against what was sent
+  • Mismatches are reported with field name and actual vs expected values
+  • Helps identify sync issues, API problems, or data transformation errors
+  • Adds minimal overhead (one GET request per synced record)
+
+${bold("SINGLE RECORD SYNC:")}
+  Use --uuid to sync only one specific Things project:
+  • Provide a Things project UUID (found using 'list-projects' command)
+  • Only that project will be synced, ignoring all others
+  • Useful for testing, debugging, or targeted updates
+  • Combines with all other flags (--verify, --verbose, --debug, etc.)
+  • Shows clear error if UUID doesn't match any Things project
+
 ${bold("EXAMPLES:")}
-  nocodb-things                    # Sync all projects (default)
-  nocodb-things sync               # Sync all projects
-  nocodb-things sync --verbose     # Sync with detailed output for each project
-  nocodb-things sync -v            # Short form of --verbose
-  nocodb-things sync --dry-run     # Preview changes only
-  nocodb-things sync --debug       # Debug mode with step-by-step confirmation
-  nocodb-things sync -v --debug    # Combine verbose and debug modes
+  nocodb-things                              # Sync all projects (default)
+  nocodb-things sync                         # Sync all projects
+  nocodb-things sync --verbose               # Sync with detailed output for each project
+  nocodb-things sync -v                      # Short form of --verbose
+  nocodb-things sync --dry-run               # Preview changes only
+  nocodb-things sync --debug                 # Debug mode with step-by-step confirmation
+  nocodb-things sync -v --debug              # Combine verbose and debug modes
+  nocodb-things sync --verify                # Sync all projects and verify each one
+  nocodb-things sync --uuid ABC123-DEF456    # Sync only the project with this UUID
+  nocodb-things sync --uuid ABC123 --verify  # Sync one project and verify the result
+  nocodb-things sync --uuid ABC123 -v        # Sync one project with verbose output
 `);
 }
