@@ -187,6 +187,13 @@ export async function projectSyncCommand(
     let created = 0;
     let updated = 0;
 
+    // Track records for post-sync verification
+    const recordsToVerify: Array<{
+      recordId: string;
+      expectedData: Partial<NocoDBRecord>;
+      projectTitle: string;
+    }> = [];
+
     for (const project of thingsProjects) {
       if (flags["dry-run"]) {
         console.log(`[DRY RUN] Would process project: ${project.title}`);
@@ -318,27 +325,13 @@ export async function projectSyncCommand(
             printDebugHttpResponse(200, "OK", result);
           }
 
-          // Verify the update if --verify flag is set
+          // Track for verification if --verify flag is set
           if (flags.verify) {
-            const verification = await verifyRecord(
-              nocodb,
+            recordsToVerify.push({
               recordId,
-              updates,
-              project.title,
-            );
-
-            if (verification.success) {
-              if (flags.verbose || flags.debug) {
-                console.log(green("  ✓ Verification passed"));
-              }
-            } else {
-              console.log(
-                yellow(`  ⚠️  Verification failed for "${project.title}":`),
-              );
-              for (const mismatch of verification.mismatches) {
-                console.log(yellow(`     - ${mismatch}`));
-              }
-            }
+              expectedData: updates,
+              projectTitle: project.title,
+            });
           }
 
           // Verbose mode: show sync data with response
@@ -454,27 +447,13 @@ export async function projectSyncCommand(
                 printDebugHttpResponse(200, "OK", result);
               }
 
-              // Verify the update if --verify flag is set
+              // Track for verification if --verify flag is set
               if (flags.verify) {
-                const verification = await verifyRecord(
-                  nocodb,
+                recordsToVerify.push({
                   recordId,
-                  updates,
-                  project.title,
-                );
-
-                if (verification.success) {
-                  if (flags.verbose || flags.debug) {
-                    console.log(green("  ✓ Verification passed"));
-                  }
-                } else {
-                  console.log(
-                    yellow(`  ⚠️  Verification failed for "${project.title}":`),
-                  );
-                  for (const mismatch of verification.mismatches) {
-                    console.log(yellow(`     - ${mismatch}`));
-                  }
-                }
+                  expectedData: updates,
+                  projectTitle: project.title,
+                });
               }
 
               // Verbose mode: show sync data with response
@@ -580,27 +559,13 @@ export async function projectSyncCommand(
               printDebugHttpResponse(200, "OK", result);
             }
 
-            // Verify the update if --verify flag is set
+            // Track for verification if --verify flag is set
             if (flags.verify) {
-              const verification = await verifyRecord(
-                nocodb,
+              recordsToVerify.push({
                 recordId,
-                updates,
-                project.title,
-              );
-
-              if (verification.success) {
-                if (flags.verbose || flags.debug) {
-                  console.log(green("  ✓ Verification passed"));
-                }
-              } else {
-                console.log(
-                  yellow(`  ⚠️  Verification failed for "${project.title}":`),
-                );
-                for (const mismatch of verification.mismatches) {
-                  console.log(yellow(`     - ${mismatch}`));
-                }
-              }
+                expectedData: updates,
+                projectTitle: project.title,
+              });
             }
 
             // Verbose mode: show sync data with response
@@ -656,33 +621,19 @@ export async function projectSyncCommand(
           printDebugHttpResponse(201, "Created", result);
         }
 
-        // Verify the created record if --verify flag is set
+        // Track for verification if --verify flag is set
         if (flags.verify) {
           try {
             const createdRecordId = await nocodb.getRecordId(result);
-            const verification = await verifyRecord(
-              nocodb,
-              createdRecordId,
-              newRecord,
-              project.title,
-            );
-
-            if (verification.success) {
-              if (flags.verbose || flags.debug) {
-                console.log(green("  ✓ Verification passed"));
-              }
-            } else {
-              console.log(
-                yellow(`  ⚠️  Verification failed for "${project.title}":`),
-              );
-              for (const mismatch of verification.mismatches) {
-                console.log(yellow(`     - ${mismatch}`));
-              }
-            }
+            recordsToVerify.push({
+              recordId: createdRecordId,
+              expectedData: newRecord,
+              projectTitle: project.title,
+            });
           } catch (error) {
             console.log(
               yellow(
-                `  ⚠️  Could not verify created record: ${
+                `  ⚠️  Could not track record for verification: ${
                   error instanceof Error ? error.message : String(error)
                 }`,
               ),
@@ -721,6 +672,57 @@ export async function projectSyncCommand(
       }
     }
 
+    // Verification phase - run after all syncing is complete
+    let verificationPassed = 0;
+    let verificationFailed = 0;
+
+    if (flags.verify && recordsToVerify.length > 0) {
+      console.log("");
+      console.log(bold("Verifying synced data..."));
+
+      for (const { recordId, expectedData, projectTitle } of recordsToVerify) {
+        const verification = await verifyRecord(
+          nocodb,
+          recordId,
+          expectedData,
+          projectTitle,
+        );
+
+        if (verification.success) {
+          verificationPassed++;
+          if (flags.verbose || flags.debug) {
+            console.log(green(`  ✓ Verified: ${projectTitle}`));
+          }
+        } else {
+          verificationFailed++;
+          console.log(
+            yellow(`  ⚠️  Verification failed for "${projectTitle}":`),
+          );
+          for (const mismatch of verification.mismatches) {
+            console.log(yellow(`     - ${mismatch}`));
+          }
+        }
+      }
+
+      console.log("");
+      if (verificationFailed === 0) {
+        console.log(
+          green(
+            bold(`✓ All ${verificationPassed} records verified successfully!`),
+          ),
+        );
+      } else {
+        console.log(
+          yellow(
+            bold(
+              `⚠️  Verification: ${verificationPassed} passed, ${verificationFailed} failed`,
+            ),
+          ),
+        );
+      }
+    }
+
+    console.log("");
     console.log(green(bold("✓ Sync completed successfully!")));
     console.log(`  Projects processed: ${synced}`);
     console.log(`  Records created: ${created}`);
@@ -1389,11 +1391,12 @@ ${bold("INTERACTIVE PROMPTS:")}
   • Selected record will be updated with project UUID and data
 
 ${bold("VERIFICATION MODE:")}
-  Use --verify to validate synced data after each operation:
-  • After syncing (create/update), the record is queried back from NocoDB
+  Use --verify to validate synced data after all records have been synced:
+  • After all sync operations complete, each synced record is queried from NocoDB
   • Each field value is compared against what was sent
   • Mismatches are reported with field name and actual vs expected values
   • Helps identify sync issues, API problems, or data transformation errors
+  • Shows summary of verification results (passed/failed counts)
   • Adds minimal overhead (one GET request per synced record)
 
 ${bold("SINGLE RECORD SYNC:")}
