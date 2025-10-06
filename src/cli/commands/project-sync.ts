@@ -339,6 +339,9 @@ export async function projectSyncCommand(
             // Construct the payload structure that was sent to NocoDB
             // The actual payload is an array with the record ID and updates
             const requestPayload = [{ Id: recordId, ...updates }];
+            const baseUrl = config.get("nocodbUrl");
+            const tableId = config.get("tableId");
+            const requestUrl = `${baseUrl}/api/v2/tables/${tableId}/records`;
             printVerboseSync(
               project,
               "update",
@@ -346,6 +349,8 @@ export async function projectSyncCommand(
               recordId,
               result,
               requestPayload,
+              requestUrl,
+              "PATCH",
             );
             console.log(green(`✓ Successfully updated`));
           } else {
@@ -459,6 +464,9 @@ export async function projectSyncCommand(
               // Verbose mode: show sync data with response
               if (flags.verbose) {
                 const requestPayload = [{ Id: recordId, ...updates }];
+                const baseUrl = config.get("nocodbUrl");
+                const tableId = config.get("tableId");
+                const requestUrl = `${baseUrl}/api/v2/tables/${tableId}/records`;
                 printVerboseSync(
                   project,
                   "link",
@@ -466,6 +474,8 @@ export async function projectSyncCommand(
                   recordId,
                   result,
                   requestPayload,
+                  requestUrl,
+                  "PATCH",
                 );
                 console.log(green(`✓ Successfully linked and updated`));
               } else {
@@ -571,6 +581,9 @@ export async function projectSyncCommand(
             // Verbose mode: show sync data with response
             if (flags.verbose) {
               const requestPayload = [{ Id: recordId, ...updates }];
+              const baseUrl = config.get("nocodbUrl");
+              const tableId = config.get("tableId");
+              const requestUrl = `${baseUrl}/api/v2/tables/${tableId}/records`;
               printVerboseSync(
                 project,
                 "link",
@@ -578,6 +591,8 @@ export async function projectSyncCommand(
                 recordId,
                 result,
                 requestPayload,
+                requestUrl,
+                "PATCH",
               );
               console.log(green(`✓ Successfully linked and updated`));
             } else {
@@ -644,6 +659,9 @@ export async function projectSyncCommand(
         // Verbose mode: show sync data with response
         if (flags.verbose) {
           // For create operations, the payload is the newRecord object
+          const baseUrl = config.get("nocodbUrl");
+          const tableId = config.get("tableId");
+          const requestUrl = `${baseUrl}/api/v2/tables/${tableId}/records`;
           printVerboseSync(
             project,
             "create",
@@ -651,6 +669,8 @@ export async function projectSyncCommand(
             undefined,
             result,
             newRecord,
+            requestUrl,
+            "POST",
           );
           console.log(green(`✓ Successfully created`));
         } else {
@@ -1089,6 +1109,8 @@ function printVerboseSync(
   recordId?: string,
   response?: unknown,
   requestPayload?: unknown,
+  requestUrl?: string,
+  requestMethod?: string,
 ): void {
   console.log("");
   console.log(bold(`Syncing: "${project.title}"`));
@@ -1138,18 +1160,30 @@ function printVerboseSync(
     );
   }
 
-  // Display request payload if provided
-  if (requestPayload) {
+  // Display HTTP request details if provided
+  if (requestUrl || requestMethod || requestPayload) {
     console.log("");
-    console.log(bold("Request Payload:"));
-    try {
-      const payloadStr = JSON.stringify(requestPayload, null, 2);
-      // Indent each line
-      const indentedPayload = payloadStr.split("\n").map((line) => `  ${line}`)
-        .join("\n");
-      console.log(cyan(indentedPayload));
-    } catch {
-      console.log(cyan(`  ${String(requestPayload)}`));
+    console.log(bold("HTTP Request:"));
+
+    if (requestMethod) {
+      console.log(`  Method:       ${cyan(requestMethod)}`);
+    }
+
+    if (requestUrl) {
+      console.log(`  URL:          ${cyan(requestUrl)}`);
+    }
+
+    if (requestPayload) {
+      console.log(`  Parameters:`);
+      try {
+        const payloadStr = JSON.stringify(requestPayload, null, 2);
+        // Indent each line (extra indent for nested display)
+        const indentedPayload = payloadStr.split("\n").map((line) => `    ${line}`)
+          .join("\n");
+        console.log(cyan(indentedPayload));
+      } catch {
+        console.log(cyan(`    ${String(requestPayload)}`));
+      }
     }
   }
 
