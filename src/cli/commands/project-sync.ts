@@ -54,6 +54,7 @@ export async function projectSyncCommand(
     "Project Name": "title",
     "Things UUID": "id",
     "Goal": "notes",
+    "Gaol": "notes", // Handle typo in NocoDB table
     "Area": "area",
   };
 
@@ -284,8 +285,10 @@ export async function projectSyncCommand(
         }
         needsUpdate = true;
 
-        // Always update Goal field
-        if (matchingRecord["Goal"] !== undefined) {
+        // Always update Goal/Gaol field
+        if (matchingRecord["Gaol"] !== undefined) {
+          updates["Gaol"] = project.notes;
+        } else if (matchingRecord["Goal"] !== undefined) {
           updates["Goal"] = project.notes;
         } else if (matchingRecord["goal"] !== undefined) {
           updates["goal"] = project.notes;
@@ -294,7 +297,7 @@ export async function projectSyncCommand(
         } else if (matchingRecord["notes"] !== undefined) {
           updates["notes"] = project.notes;
         } else {
-          updates["Goal"] = project.notes;
+          updates["Gaol"] = project.notes;
         }
         needsUpdate = true;
 
@@ -337,7 +340,6 @@ export async function projectSyncCommand(
           // Verbose mode: show sync data with response
           if (flags.verbose) {
             // Construct the payload structure that was sent to NocoDB
-            // The actual payload is an array with the record ID and updates
             const requestPayload = [{ Id: recordId, ...updates }];
             const baseUrl = config.get("nocodbUrl");
             const tableId = config.get("tableId");
@@ -416,8 +418,10 @@ export async function projectSyncCommand(
                 updates["Project Name"] = project.title;
               }
 
-              // Update Goal field
-              if (selectedRecord["Goal"] !== undefined) {
+              // Update Goal/Gaol field
+              if (selectedRecord["Gaol"] !== undefined) {
+                updates["Gaol"] = project.notes;
+              } else if (selectedRecord["Goal"] !== undefined) {
                 updates["Goal"] = project.notes;
               } else if (selectedRecord["goal"] !== undefined) {
                 updates["goal"] = project.notes;
@@ -426,7 +430,7 @@ export async function projectSyncCommand(
               } else if (selectedRecord["notes"] !== undefined) {
                 updates["notes"] = project.notes;
               } else {
-                updates["Goal"] = project.notes;
+                updates["Gaol"] = project.notes;
               }
 
               // Update Area field if available
@@ -466,7 +470,8 @@ export async function projectSyncCommand(
                 const requestPayload = [{ Id: recordId, ...updates }];
                 const baseUrl = config.get("nocodbUrl");
                 const tableId = config.get("tableId");
-                const requestUrl = `${baseUrl}/api/v2/tables/${tableId}/records`;
+                const requestUrl =
+                  `${baseUrl}/api/v2/tables/${tableId}/records`;
                 printVerboseSync(
                   project,
                   "link",
@@ -533,8 +538,10 @@ export async function projectSyncCommand(
               updates["Project Name"] = project.title;
             }
 
-            // Update Goal field
-            if (selectedRecord["Goal"] !== undefined) {
+            // Update Goal/Gaol field
+            if (selectedRecord["Gaol"] !== undefined) {
+              updates["Gaol"] = project.notes;
+            } else if (selectedRecord["Goal"] !== undefined) {
               updates["Goal"] = project.notes;
             } else if (selectedRecord["goal"] !== undefined) {
               updates["goal"] = project.notes;
@@ -543,7 +550,7 @@ export async function projectSyncCommand(
             } else if (selectedRecord["notes"] !== undefined) {
               updates["notes"] = project.notes;
             } else {
-              updates["Goal"] = project.notes;
+              updates["Gaol"] = project.notes;
             }
 
             // Update Area field if available
@@ -617,7 +624,7 @@ export async function projectSyncCommand(
           Title: project.title,
           "Project Name": project.title,
           "Things UUID": project.id,
-          Goal: project.notes,
+          Gaol: project.notes, // Use "Gaol" (typo in NocoDB table)
         };
 
         if (project.area) {
@@ -1178,7 +1185,9 @@ function printVerboseSync(
       try {
         const payloadStr = JSON.stringify(requestPayload, null, 2);
         // Indent each line (extra indent for nested display)
-        const indentedPayload = payloadStr.split("\n").map((line) => `    ${line}`)
+        const indentedPayload = payloadStr.split("\n").map((line) =>
+          `    ${line}`
+        )
           .join("\n");
         console.log(cyan(indentedPayload));
       } catch {
@@ -1217,6 +1226,7 @@ function getThingsFieldName(nocodbField: string): string {
     "Project Name": "title",
     "project_name": "title",
     "Title": "title",
+    "Gaol": "notes", // Typo in NocoDB table
     "Goal": "notes",
     "goal": "notes",
     "Notes": "notes",

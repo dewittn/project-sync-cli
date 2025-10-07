@@ -496,4 +496,178 @@ export class ThingsClient {
     const output = new TextDecoder().decode(stdout).trim();
     return output.split(", ").map((a) => a.trim());
   }
+
+  /**
+   * Get all tags for a specific project
+   * @param projectId The UUID of the project
+   * @returns Array of tag names
+   */
+  async getProjectTags(projectId: string): Promise<string[]> {
+    const script = `
+      tell application "Things3"
+        set foundProject to null
+        repeat with p in projects
+          if id of p is "${projectId}" then
+            set foundProject to p
+            exit repeat
+          end if
+        end repeat
+
+        if foundProject is null then
+          return "PROJECT_NOT_FOUND"
+        end if
+
+        set tagList to {}
+        try
+          set tagList to tag names of foundProject
+        end try
+
+        if tagList is {} then
+          return ""
+        end if
+
+        set AppleScript's text item delimiters to "|"
+        set tagString to tagList as string
+        set AppleScript's text item delimiters to ""
+        return tagString
+      end tell
+    `;
+
+    const command = new Deno.Command("osascript", {
+      args: ["-e", script],
+    });
+
+    const { stdout, stderr } = await command.output();
+
+    if (stderr.length > 0) {
+      throw new Error(
+        `Failed to fetch project tags: ${new TextDecoder().decode(stderr)}`,
+      );
+    }
+
+    const output = new TextDecoder().decode(stdout).trim();
+
+    if (output === "PROJECT_NOT_FOUND") {
+      throw new Error(`Project with ID ${projectId} not found`);
+    }
+
+    if (output === "") {
+      return [];
+    }
+
+    return output.split("|").filter((t) => t.trim() !== "");
+  }
+
+  /**
+   * Add a tag to a project (creates the tag if it doesn't exist)
+   * @param projectId The UUID of the project
+   * @param tagName The name of the tag to add
+   */
+  async addTag(projectId: string, tagName: string): Promise<void> {
+    // Escape quotes in tag name for AppleScript
+    const escapedTagName = tagName.replace(/"/g, '\\"');
+
+    const script = `
+      tell application "Things3"
+        set foundProject to null
+        repeat with p in projects
+          if id of p is "${projectId}" then
+            set foundProject to p
+            exit repeat
+          end if
+        end repeat
+
+        if foundProject is null then
+          error "Project not found"
+        end if
+
+        -- Get current tags
+        set currentTags to {}
+        try
+          set currentTags to tag names of foundProject
+        end try
+
+        -- Check if tag already exists
+        set tagExists to false
+        repeat with t in currentTags
+          if t is "${escapedTagName}" then
+            set tagExists to true
+            exit repeat
+          end if
+        end repeat
+
+        -- Only add if it doesn't exist
+        if not tagExists then
+          set end of currentTags to "${escapedTagName}"
+          set tag names of foundProject to currentTags
+        end if
+      end tell
+    `;
+
+    const command = new Deno.Command("osascript", {
+      args: ["-e", script],
+    });
+
+    const { stderr, success } = await command.output();
+
+    if (!success || stderr.length > 0) {
+      throw new Error(
+        `Failed to add tag: ${new TextDecoder().decode(stderr)}`,
+      );
+    }
+  }
+
+  /**
+   * Remove a specific tag from a project
+   * @param projectId The UUID of the project
+   * @param tagName The name of the tag to remove
+   */
+  async removeTag(projectId: string, tagName: string): Promise<void> {
+    // Escape quotes in tag name for AppleScript
+    const escapedTagName = tagName.replace(/"/g, '\\"');
+
+    const script = `
+      tell application "Things3"
+        set foundProject to null
+        repeat with p in projects
+          if id of p is "${projectId}" then
+            set foundProject to p
+            exit repeat
+          end if
+        end repeat
+
+        if foundProject is null then
+          error "Project not found"
+        end if
+
+        -- Get current tags
+        set currentTags to {}
+        try
+          set currentTags to tag names of foundProject
+        end try
+
+        -- Remove the specified tag
+        set newTags to {}
+        repeat with t in currentTags
+          if t is not "${escapedTagName}" then
+            set end of newTags to t
+          end if
+        end repeat
+
+        set tag names of foundProject to newTags
+      end tell
+    `;
+
+    const command = new Deno.Command("osascript", {
+      args: ["-e", script],
+    });
+
+    const { stderr, success } = await command.output();
+
+    if (!success || stderr.length > 0) {
+      throw new Error(
+        `Failed to remove tag: ${new TextDecoder().decode(stderr)}`,
+      );
+    }
+  }
 }

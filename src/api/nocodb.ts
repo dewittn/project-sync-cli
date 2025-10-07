@@ -422,6 +422,8 @@ export class NocoDBClient {
 
     // Validate and clean the update data
     const cleanedUpdates = this.validateAndCleanRecord(updates);
+
+    // Use batch endpoint with array format - NocoDB expects array even for single record
     const payload = [{ [this.primaryKeyField!]: id, ...cleanedUpdates }];
 
     const url = `${this.baseUrl}/api/v2/tables/${this.tableId}/records`;
@@ -477,6 +479,51 @@ export class NocoDBClient {
     const url = `${this.baseUrl}/api/v2/meta/tables/${this.tableId}`;
     const response = await this.fetchWithErrorHandling(url);
     return await response.json();
+  }
+
+  /**
+   * Get valid options for a select/multi-select field
+   * @param fieldName The title/name of the field
+   * @returns Array of valid option values, or null if field not found or has no options
+   */
+  async getFieldOptions(fieldName: string): Promise<string[] | null> {
+    await this.ensureTableId();
+
+    const schema = await this.getTableSchema();
+    const columns = schema.columns as Array<{
+      title: string;
+      uidt?: string; // UI data type
+      colOptions?: {
+        options?: Array<{ title: string; order?: number }>;
+      };
+    }>;
+
+    if (!columns || columns.length === 0) {
+      return null;
+    }
+
+    // Find the column by title
+    const column = columns.find((col) => col.title === fieldName);
+
+    if (!column) {
+      return null;
+    }
+
+    // Check if it's a select or multi-select field
+    if (
+      column.uidt !== "SingleSelect" && column.uidt !== "MultiSelect"
+    ) {
+      return null;
+    }
+
+    // Extract options
+    const options = column.colOptions?.options;
+    if (!options || options.length === 0) {
+      return [];
+    }
+
+    // Return just the titles/values of the options
+    return options.map((opt) => opt.title);
   }
 
   async getRecordId(record: NocoDBRecord): Promise<string> {
