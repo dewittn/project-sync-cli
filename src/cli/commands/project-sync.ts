@@ -424,7 +424,7 @@ export async function projectSyncCommand(
               await syncStatusTags(
                 thingsClient,
                 project,
-                result,
+                matchingRecord,
                 statusFieldName,
                 validStatusValues,
                 flags,
@@ -577,7 +577,7 @@ export async function projectSyncCommand(
                   await syncStatusTags(
                     thingsClient,
                     project,
-                    result,
+                    selectedRecord,
                     statusFieldName,
                     validStatusValues,
                     flags,
@@ -719,7 +719,7 @@ export async function projectSyncCommand(
                 await syncStatusTags(
                   thingsClient,
                   project,
-                  result,
+                  selectedRecord,
                   statusFieldName,
                   validStatusValues,
                   flags,

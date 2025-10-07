@@ -581,16 +581,24 @@ export class ThingsClient {
           error "Project not found"
         end if
 
-        -- Get current tags
-        set currentTags to {}
+        -- Get current tags as text (comma-separated)
+        set currentTagsText to ""
         try
-          set currentTags to tag names of foundProject
+          set currentTagsText to tag names of foundProject
         end try
+
+        -- Convert comma-separated text to list
+        set AppleScript's text item delimiters to ", "
+        set currentTagsList to {}
+        if currentTagsText is not "" then
+          set currentTagsList to text items of currentTagsText
+        end if
+        set AppleScript's text item delimiters to ""
 
         -- Check if tag already exists
         set tagExists to false
-        repeat with t in currentTags
-          if t is "${escapedTagName}" then
+        repeat with existingTag in currentTagsList
+          if existingTag as string is "${escapedTagName}" then
             set tagExists to true
             exit repeat
           end if
@@ -598,8 +606,12 @@ export class ThingsClient {
 
         -- Only add if it doesn't exist
         if not tagExists then
-          set end of currentTags to "${escapedTagName}"
-          set tag names of foundProject to currentTags
+          set end of currentTagsList to "${escapedTagName}"
+          -- Convert list back to comma-separated text
+          set AppleScript's text item delimiters to ", "
+          set newTagsText to currentTagsList as string
+          set AppleScript's text item delimiters to ""
+          set tag names of foundProject to newTagsText
         end if
       end tell
     `;
@@ -640,21 +652,35 @@ export class ThingsClient {
           error "Project not found"
         end if
 
-        -- Get current tags
-        set currentTags to {}
+        -- Get current tags as text (comma-separated)
+        set currentTagsText to ""
         try
-          set currentTags to tag names of foundProject
+          set currentTagsText to tag names of foundProject
         end try
 
-        -- Remove the specified tag
-        set newTags to {}
-        repeat with t in currentTags
-          if t is not "${escapedTagName}" then
-            set end of newTags to t
+        -- Convert comma-separated text to list
+        set AppleScript's text item delimiters to ", "
+        set currentTagsList to {}
+        if currentTagsText is not "" then
+          set currentTagsList to text items of currentTagsText
+        end if
+        set AppleScript's text item delimiters to ""
+
+        -- Build new list without the specified tag
+        set newTagsList to {}
+        repeat with existingTag in currentTagsList
+          if existingTag as string is not "${escapedTagName}" then
+            set end of newTagsList to (existingTag as string)
           end if
         end repeat
 
-        set tag names of foundProject to newTags
+        -- Convert list back to comma-separated text
+        set AppleScript's text item delimiters to ", "
+        set newTagsText to newTagsList as string
+        set AppleScript's text item delimiters to ""
+
+        -- Set the new tag list (empty string if no tags remain)
+        set tag names of foundProject to newTagsText
       end tell
     `;
 
