@@ -4,7 +4,13 @@ import { ConfigManager } from "../../config/manager.ts";
 import { NocoDBClient } from "../../api/nocodb.ts";
 
 // Valid Things project properties
-const VALID_THINGS_PROPERTIES = ["title", "id", "notes", "area"] as const;
+const VALID_THINGS_PROPERTIES = [
+  "title",
+  "id",
+  "notes",
+  "area",
+  "status",
+] as const;
 
 export async function mapCommand(
   args: string[],
@@ -143,16 +149,20 @@ async function listMappings(config: ConfigManager): Promise<void> {
   console.log(bold("  Things Project Field    →    NocoDB Table Field"));
   console.log("  ┌──────────────────┐        ┌──────────────────┐");
 
-  const thingsProperties = ["title", "id", "notes", "area"];
+  const thingsProperties = [
+    { key: "title", label: "title (Project Title)" },
+    { key: "id", label: "id (UUID)" },
+    { key: "notes", label: "notes" },
+    { key: "area", label: "area" },
+    { key: "status", label: "status (NocoDB→Things)" },
+  ];
 
   for (const prop of thingsProperties) {
-    const nocodbFields = thingsToNocoDB[prop] || [];
+    const nocodbFields = thingsToNocoDB[prop.key] || [];
     if (nocodbFields.length > 0) {
-      // Format Things property display
-      const thingsDisplay = prop === "id" ? `${prop} (UUID)` : prop;
       const firstField = nocodbFields[0];
       console.log(
-        `  │ ${thingsDisplay.padEnd(16)} │ ────→ │ ${firstField.padEnd(16)} │`,
+        `  │ ${prop.label.padEnd(16)} │ ────→ │ ${firstField.padEnd(16)} │`,
       );
 
       // Show additional mapped fields
@@ -163,9 +173,8 @@ async function listMappings(config: ConfigManager): Promise<void> {
       }
     } else {
       // Show unmapped Things properties
-      const thingsDisplay = prop === "id" ? `${prop} (UUID)` : prop;
       console.log(
-        `  │ ${thingsDisplay.padEnd(16)} │ ────→ │ ${
+        `  │ ${prop.label.padEnd(16)} │ ────→ │ ${
           yellow("(not mapped)").padEnd(16)
         } │`,
       );
@@ -181,19 +190,22 @@ async function listMappings(config: ConfigManager): Promise<void> {
 
   if (Object.keys(effectiveMappings).length === 0) {
     console.log(yellow("  No field mappings configured."));
-    console.log("  Run 'nocodb-things map' to set up mappings.");
+    console.log("  Run 'prjsync map' to set up mappings.");
   } else {
     // Reverse the display to show Things property → NocoDB field
     for (const thingsProp of thingsProperties) {
-      const nocodbFields = thingsToNocoDB[thingsProp] || [];
+      const nocodbFields = thingsToNocoDB[thingsProp.key] || [];
       if (nocodbFields.length > 0) {
         for (const nocodbField of nocodbFields) {
           const isCustom = validCustomMappings[nocodbField] !== undefined;
           const isDefault = !isCustom &&
-            defaultMappings[nocodbField] === thingsProp;
+            defaultMappings[nocodbField] === thingsProp.key;
           const marker = isCustom ? "(custom)" : isDefault ? "(default)" : "";
+          const displayLabel = thingsProp.key === "title"
+            ? "title (Project Title)"
+            : thingsProp.key;
           console.log(
-            `  Things.${thingsProp.padEnd(10)} → NocoDB.${
+            `  Things.${displayLabel.padEnd(20)} → NocoDB.${
               nocodbField.padEnd(20)
             } ${marker ? green(marker) : ""}`,
           );
@@ -226,7 +238,7 @@ async function listMappings(config: ConfigManager): Promise<void> {
     );
     console.log(
       yellow(
-        "  Use 'nocodb-things map --remove <field>' to remove invalid mappings.",
+        "  Use 'prjsync map --remove <field>' to remove invalid mappings.",
       ),
     );
   }
@@ -262,7 +274,7 @@ async function listMappings(config: ConfigManager): Promise<void> {
       }
       console.log(
         cyan(
-          '\n  Tip: Use "nocodb-things map --add <field>:<property>" to add mappings',
+          '\n  Tip: Use "prjsync map --add <field>:<property>" to add mappings',
         ),
       );
     }
@@ -304,6 +316,28 @@ async function addMapping(
   }
 
   const mappings = config.get("fieldMappings") || {};
+
+  // Check if another NocoDB field already maps to this Things property
+  const existingMapping = Object.entries(mappings).find(
+    ([nocoField, thingsProp]) =>
+      thingsProp === thingsProperty && nocoField !== nocodbField,
+  );
+
+  if (existingMapping) {
+    console.log(
+      yellow(
+        `Note: NocoDB field '${
+          existingMapping[0]
+        }' was already mapped to Things.${thingsProperty}`,
+      ),
+    );
+    console.log(
+      yellow(`Replacing with new mapping from '${nocodbField}'`),
+    );
+    // Remove the old mapping
+    delete mappings[existingMapping[0]];
+  }
+
   mappings[nocodbField] = thingsProperty;
 
   config.set("fieldMappings", mappings);
@@ -383,38 +417,105 @@ async function interactiveMappingSetup(config: ConfigManager): Promise<void> {
   console.log("Press Enter to skip a field.\n");
 
   const thingsProjectProperties = [
-    "title", // Project title
-    "id", // Project UUID
-    "notes", // Project notes/goals
-    "area", // Project area
+    { key: "title", label: "Project Title" },
+    { key: "id", label: "Project UUID" },
+    { key: "notes", label: "Project notes/goals" },
+    { key: "area", label: "Project area" },
+    { key: "status", label: "Project status (enables bidirectional sync NocoDB→Things)" },
   ];
 
   const mappings = config.get("fieldMappings") || {};
 
-  // Common NocoDB field names for projects
-  const nocodbFields = [
-    "Title",
-    "Project Name",
-    "Things UUID",
-    "Goal",
-    "Area",
-    "Description",
-    "Notes",
-  ];
+  // Query NocoDB to get the current list of fields
+  let nocodbFields: string[] = [];
+  if (config.isConfigured()) {
+    try {
+      console.log("Fetching NocoDB table fields...\n");
+      const nocodb = new NocoDBClient(config);
+      const schema = await nocodb.getTableSchema();
+      const columns = schema.columns as Array<{ title: string }>;
+      nocodbFields = columns.map((col) => col.title).sort();
+      console.log(
+        green(`✓ Found ${nocodbFields.length} fields in NocoDB table\n`),
+      );
+    } catch (error) {
+      console.log(
+        yellow(
+          `Warning: Could not fetch NocoDB fields: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        ),
+      );
+      console.log(
+        yellow("Using common field names as fallback.\n"),
+      );
+      // Fallback to common field names
+      nocodbFields = [
+        "Title",
+        "Project Name",
+        "Things UUID",
+        "Goal",
+        "Area",
+        "Description",
+        "Notes",
+      ];
+    }
+  } else {
+    console.log(
+      yellow(
+        "NocoDB not configured. Using common field names as examples.\n",
+      ),
+    );
+    // Fallback to common field names
+    nocodbFields = [
+      "Title",
+      "Project Name",
+      "Things UUID",
+      "Goal",
+      "Area",
+      "Description",
+      "Notes",
+    ];
+  }
 
   console.log(bold("Available Things project properties:"));
-  console.log(thingsProjectProperties.map((p) => `  • ${p}`).join("\n"));
+  for (const prop of thingsProjectProperties) {
+    console.log(`  • ${prop.key} (${prop.label})`);
+  }
   console.log();
 
   for (const field of nocodbFields) {
     const currentMapping = mappings[field];
     const prompt_text = currentMapping
-      ? `Map '${field}' to (current: ${currentMapping}):`
-      : `Map '${field}' to:`;
+      ? `Which Things property should NocoDB field '${field}' map to? (current: ${currentMapping}):`
+      : `Which Things property should NocoDB field '${field}' map to?`;
 
     const input = prompt(prompt_text);
 
-    if (input && thingsProjectProperties.includes(input)) {
+    if (
+      input && thingsProjectProperties.some((p) => p.key === input)
+    ) {
+      // Check if another NocoDB field already maps to this Things property
+      const existingMapping = Object.entries(mappings).find(
+        ([nocoField, thingsProp]) =>
+          thingsProp === input && nocoField !== field,
+      );
+
+      if (existingMapping) {
+        console.log(
+          yellow(
+            `  Note: NocoDB field '${
+              existingMapping[0]
+            }' was already mapped to Things.${input}`,
+          ),
+        );
+        console.log(
+          yellow(`  Replacing with new mapping from '${field}'`),
+        );
+        // Remove the old mapping
+        delete mappings[existingMapping[0]];
+      }
+
       mappings[field] = input;
       console.log(green(`  ✓ Things.${input} → NocoDB.${field}`));
     } else if (input === "") {
@@ -480,7 +581,7 @@ ${bold("MAP COMMAND")}
 Setup project field mappings for Things to NocoDB sync
 
 ${bold("USAGE:")}
-  nocodb-things map [options]
+  prjsync map [options]
 
 ${bold("OPTIONS:")}
   -h, --help              Show this help message
@@ -492,23 +593,31 @@ ${bold("OPTIONS:")}
   --clean                 Remove invalid mappings from config
 
 ${bold("THINGS PROJECT PROPERTIES:")}
-  title           Project title
+  title           Project Title
   id              Project unique identifier (UUID)
   notes           Project notes/goals
   area            Project area
+  status          Project status (enables bidirectional sync: NocoDB Status → Things Tags)
 
 ${bold("DEFAULT NOCODB FIELDS:")}
-  Title           Maps to project title
-  Project Name    Maps to project title
-  Things UUID     Maps to project id
+  Title           Maps to project title (Project Title)
+  Project Name    Maps to project title (Project Title)
+  Things UUID     Maps to project id (UUID)
   Goal            Maps to project notes
   Area            Maps to project area
 
 ${bold("EXAMPLES:")}
-  nocodb-things map                           # Interactive setup
-  nocodb-things map --list                    # Show visual field mapping
-  nocodb-things map --add "Goal:notes"        # Map Goal field to notes
-  nocodb-things map --remove Goal             # Remove Goal mapping
-  nocodb-things map --auto                    # Auto-generate mappings
+  prjsync map                           # Interactive setup
+  prjsync map --list                    # Show visual field mapping
+  prjsync map --add "Goal:notes"        # Map Goal field to notes
+  prjsync map --remove Goal             # Remove Goal mapping
+  prjsync map --auto                    # Auto-generate mappings
+
+${bold("NOTES:")}
+  - Only one NocoDB field can be mapped to each Things property
+  - New mappings replace existing ones for the same Things property
+  - The CLI fetches current NocoDB fields during interactive setup
+  - Mapping a field to 'status' enables bidirectional status sync (NocoDB → Things tags)
+  - Status field should be a single-select field in NocoDB for best results
 `);
 }

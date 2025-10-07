@@ -6,6 +6,7 @@ import {
   NocoDBHTTPError,
   NocoDBRecord,
 } from "../../api/nocodb.ts";
+import { ThingsClient } from "../../api/things.ts";
 import { Input, Select } from "@cliffy/prompt";
 
 export interface ThingsProject {
@@ -20,7 +21,7 @@ export async function projectSyncCommand(
   globalFlags: Record<string, unknown>,
 ): Promise<void> {
   const flags = parseArgs(args, {
-    boolean: ["help", "dry-run", "debug", "verbose", "verify"],
+    boolean: ["help", "dry-run", "debug", "verbose", "verify", "no-status-sync"],
     string: ["uuid"],
     alias: {
       h: "help",
@@ -37,7 +38,7 @@ export async function projectSyncCommand(
   if (!config.isConfigured()) {
     console.log(
       yellow(
-        "Configuration not found. Please run 'nocodb-things config --set' first.",
+        "Configuration not found. Please run 'prjsync config --set' first.",
       ),
     );
     Deno.exit(1);
@@ -64,14 +65,67 @@ export async function projectSyncCommand(
   // Build reverse mappings: Things property -> NocoDB field names
   const uuidFields: string[] = [];
   const titleFields: string[] = [];
+  let statusFieldName: string | null = null;
 
   for (const [nocodbField, thingsProperty] of Object.entries(fieldMappings)) {
     if (thingsProperty === "id") {
       uuidFields.push(nocodbField);
     } else if (thingsProperty === "title") {
       titleFields.push(nocodbField);
+    } else if (thingsProperty === "status") {
+      statusFieldName = nocodbField;
     }
   }
+
+  // Fetch valid status values if status sync is enabled
+  let validStatusValues: string[] | null = null;
+  const statusSyncEnabled = !flags["no-status-sync"];
+
+  if (statusSyncEnabled && statusFieldName) {
+    try {
+      validStatusValues = await nocodb.getFieldOptions(statusFieldName);
+      if (validStatusValues && validStatusValues.length > 0) {
+        console.log(
+          green(
+            `✓ Status field mapped: "${statusFieldName}" (${validStatusValues.length} options)`,
+          ),
+        );
+        if (flags.verbose) {
+          console.log(
+            gray(`  Status options: ${validStatusValues.join(", ")}`),
+          );
+        }
+      } else {
+        console.log(
+          yellow(`⚠  Status field "${statusFieldName}" has no options defined`),
+        );
+        validStatusValues = null;
+      }
+    } catch (error) {
+      console.log(
+        yellow(
+          `⚠  Could not fetch status field options: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        ),
+      );
+      validStatusValues = null;
+    }
+  } else if (statusSyncEnabled && !statusFieldName) {
+    if (flags.verbose) {
+      console.log(
+        gray("ℹ  No Status field mapped. Status tag sync disabled."),
+      );
+    }
+  } else if (!statusSyncEnabled) {
+    console.log(gray("ℹ  Status tag sync disabled (--no-status-sync)"));
+  }
+
+  // Initialize Things client for tag management
+  const thingsClient = new ThingsClient();
+
+  // Track tag sync errors
+  const tagErrors: Array<{ project: string; error: string }> = [];
 
   try {
     // Get all projects from Things
@@ -89,7 +143,7 @@ export async function projectSyncCommand(
         );
         console.log(
           yellow(
-            "\nTip: Use 'nocodb-things list-projects' to see all available project UUIDs",
+            "\nTip: Use 'prjsync list-projects' to see all available project UUIDs",
           ),
         );
         Deno.exit(1);
@@ -154,7 +208,7 @@ export async function projectSyncCommand(
       }
 
       // Save full records to JSON file
-      const debugDir = ".nocodb-things-debug";
+      const debugDir = ".prjsync-debug";
       const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
       const debugFilePath = `${debugDir}/nocodb-records-${timestamp}.json`;
 
@@ -360,6 +414,29 @@ export async function projectSyncCommand(
               green(`✓ Updated record for project: ${project.title}`),
             );
           }
+
+          // Sync status tags if enabled
+          if (
+            statusSyncEnabled && validStatusValues && statusFieldName &&
+            validStatusValues.length > 0
+          ) {
+            try {
+              await syncStatusTags(
+                thingsClient,
+                project,
+                result,
+                statusFieldName,
+                validStatusValues,
+                flags,
+              );
+            } catch (error) {
+              tagErrors.push({
+                project: project.title,
+                error: error instanceof Error ? error.message : String(error),
+              });
+            }
+          }
+
           updated++;
         } else if (globalFlags.verbose) {
           console.log(`- Project "${project.title}" already has correct UUID`);
@@ -490,6 +567,29 @@ export async function projectSyncCommand(
                   ),
                 );
               }
+
+              // Sync status tags if enabled
+              if (
+                statusSyncEnabled && validStatusValues && statusFieldName &&
+                validStatusValues.length > 0
+              ) {
+                try {
+                  await syncStatusTags(
+                    thingsClient,
+                    project,
+                    result,
+                    statusFieldName,
+                    validStatusValues,
+                    flags,
+                  );
+                } catch (error) {
+                  tagErrors.push({
+                    project: project.title,
+                    error: error instanceof Error ? error.message : String(error),
+                  });
+                }
+              }
+
               updated++;
               synced++;
               continue;
@@ -609,6 +709,29 @@ export async function projectSyncCommand(
                 ),
               );
             }
+
+            // Sync status tags if enabled
+            if (
+              statusSyncEnabled && validStatusValues && statusFieldName &&
+              validStatusValues.length > 0
+            ) {
+              try {
+                await syncStatusTags(
+                  thingsClient,
+                  project,
+                  result,
+                  statusFieldName,
+                  validStatusValues,
+                  flags,
+                );
+              } catch (error) {
+                tagErrors.push({
+                  project: project.title,
+                  error: error instanceof Error ? error.message : String(error),
+                });
+              }
+            }
+
             updated++;
             synced++;
             continue;
@@ -685,6 +808,29 @@ export async function projectSyncCommand(
             green(`✓ Created new record for project: ${project.title}`),
           );
         }
+
+        // Sync status tags if enabled
+        if (
+          statusSyncEnabled && validStatusValues && statusFieldName &&
+          validStatusValues.length > 0
+        ) {
+          try {
+            await syncStatusTags(
+              thingsClient,
+              project,
+              result,
+              statusFieldName,
+              validStatusValues,
+              flags,
+            );
+          } catch (error) {
+            tagErrors.push({
+              project: project.title,
+              error: error instanceof Error ? error.message : String(error),
+            });
+          }
+        }
+
         created++;
       }
 
@@ -699,6 +845,15 @@ export async function projectSyncCommand(
       }
     }
 
+    // Report tag sync errors if any occurred
+    if (tagErrors.length > 0) {
+      console.log("");
+      console.log(red(`⚠  Tag Sync Errors (${tagErrors.length}):`));
+      for (const error of tagErrors) {
+        console.log(red(`  • ${error.project}: ${error.error}`));
+      }
+    }
+
     // Verification phase - run after all syncing is complete
     let verificationPassed = 0;
     let verificationFailed = 0;
@@ -708,11 +863,23 @@ export async function projectSyncCommand(
       console.log(bold("Verifying synced data..."));
 
       for (const { recordId, expectedData, projectTitle } of recordsToVerify) {
+        // Find the project for tag verification
+        const project = thingsProjects.find((p) => p.title === projectTitle);
+
         const verification = await verifyRecord(
           nocodb,
           recordId,
           expectedData,
           projectTitle,
+          statusSyncEnabled && validStatusValues && statusFieldName &&
+              validStatusValues.length > 0
+            ? {
+              thingsClient,
+              project,
+              statusFieldName,
+              validStatusValues,
+            }
+            : undefined,
         );
 
         if (verification.success) {
@@ -1314,6 +1481,12 @@ async function verifyRecord(
   recordId: string,
   expectedUpdates: Partial<NocoDBRecord>,
   _projectTitle: string,
+  tagVerificationData?: {
+    thingsClient: ThingsClient;
+    project?: ThingsProject;
+    statusFieldName: string;
+    validStatusValues: string[];
+  },
 ): Promise<{ success: boolean; mismatches: string[] }> {
   try {
     const verifiedRecord = await nocodb.getRecordById(recordId);
@@ -1327,6 +1500,7 @@ async function verifyRecord(
 
     const mismatches: string[] = [];
 
+    // Verify field values
     for (const [field, expectedValue] of Object.entries(expectedUpdates)) {
       const actualValue = verifiedRecord[field];
 
@@ -1346,6 +1520,68 @@ async function verifyRecord(
       }
     }
 
+    // Verify tag/status matches if enabled
+    if (tagVerificationData && tagVerificationData.project) {
+      const { thingsClient, project, statusFieldName, validStatusValues } =
+        tagVerificationData;
+
+      // Get the status from NocoDB
+      const nocodbStatus = verifiedRecord[statusFieldName];
+
+      // Skip verification if status contains "Completed:" or "Canceled"
+      if (nocodbStatus) {
+        const statusStr = String(nocodbStatus).toLowerCase();
+        if (
+          !statusStr.includes("completed:") && statusStr !== "canceled"
+        ) {
+          try {
+            // Get current tags from Things
+            const currentTags = await thingsClient.getProjectTags(project.id);
+
+            // Identify status tags
+            const statusTags = currentTags.filter((tag) =>
+              validStatusValues.includes(tag)
+            );
+
+            const expectedTag = nocodbStatus
+              ? String(nocodbStatus).trim()
+              : null;
+
+            // Check if tags match the expected status
+            if (!expectedTag && statusTags.length > 0) {
+              mismatches.push(
+                `Status tag mismatch: NocoDB Status is empty but Things has status tags: [${
+                  statusTags.join(", ")
+                }]`,
+              );
+            } else if (expectedTag) {
+              if (statusTags.length === 0) {
+                mismatches.push(
+                  `Status tag mismatch: NocoDB Status="${expectedTag}" but Things has no status tag`,
+                );
+              } else if (statusTags.length > 1) {
+                mismatches.push(
+                  `Status tag mismatch: Multiple status tags found: [${
+                    statusTags.join(", ")
+                  }], expected only "${expectedTag}"`,
+                );
+              } else if (statusTags[0] !== expectedTag) {
+                mismatches.push(
+                  `Status tag mismatch: NocoDB Status="${expectedTag}" but Things has tag="${statusTags[0]}"`,
+                );
+              }
+            }
+          } catch (error) {
+            mismatches.push(
+              `Tag verification error: ${
+                error instanceof Error ? error.message : String(error)
+              }`,
+            );
+          }
+        }
+      }
+    }
+
     return {
       success: mismatches.length === 0,
       mismatches,
@@ -1362,13 +1598,114 @@ async function verifyRecord(
   }
 }
 
+/**
+ * Sync status tags from NocoDB to Things
+ */
+async function syncStatusTags(
+  thingsClient: ThingsClient,
+  project: ThingsProject,
+  record: NocoDBRecord,
+  statusFieldName: string,
+  validStatusValues: string[],
+  flags: {
+    "dry-run"?: boolean;
+    verbose?: boolean;
+  },
+): Promise<void> {
+  // Get the status value from the record
+  const recordStatus = record[statusFieldName];
+
+  // Skip if status contains "Completed:" or "Canceled" (case-insensitive)
+  if (recordStatus) {
+    const statusStr = String(recordStatus).toLowerCase();
+    if (
+      statusStr.includes("completed:") || statusStr === "canceled"
+    ) {
+      if (flags.verbose) {
+        console.log(
+          gray(
+            `  Status tag sync skipped (project is ${recordStatus})`,
+          ),
+        );
+      }
+      return;
+    }
+  }
+
+  // Get current project tags from Things
+  const currentTags = await thingsClient.getProjectTags(project.id);
+
+  // Identify status tags (tags that match valid status values)
+  const statusTags = currentTags.filter((tag) =>
+    validStatusValues.includes(tag)
+  );
+
+  // Determine target tag
+  const targetTag = recordStatus ? String(recordStatus).trim() : null;
+
+  if (flags.verbose) {
+    console.log(gray(`\n  Status Tag Sync:`));
+    console.log(gray(`    Current tags: ${currentTags.join(", ") || "(none)"}`));
+    console.log(
+      gray(`    NocoDB Status: ${targetTag || "(empty)"}`),
+    );
+    console.log(
+      gray(
+        `    Status tags found: ${statusTags.join(", ") || "(none)"}`,
+      ),
+    );
+  }
+
+  // If Status field is empty/null, remove all status tags
+  if (!targetTag) {
+    for (const tag of statusTags) {
+      if (flags["dry-run"]) {
+        console.log(cyan(`  Would remove status tag: ${tag}`));
+      } else {
+        await thingsClient.removeTag(project.id, tag);
+        if (flags.verbose) {
+          console.log(gray(`    Removed tag: ${tag}`));
+        }
+      }
+    }
+    return;
+  }
+
+  // Remove status tags that don't match the target
+  const tagsToRemove = statusTags.filter((tag) => tag !== targetTag);
+  for (const tag of tagsToRemove) {
+    if (flags["dry-run"]) {
+      console.log(cyan(`  Would remove status tag: ${tag}`));
+    } else {
+      await thingsClient.removeTag(project.id, tag);
+      if (flags.verbose) {
+        console.log(gray(`    Removed tag: ${tag}`));
+      }
+    }
+  }
+
+  // Add the target tag if not already present
+  if (!statusTags.includes(targetTag)) {
+    if (flags["dry-run"]) {
+      console.log(cyan(`  Would add status tag: ${targetTag}`));
+    } else {
+      await thingsClient.addTag(project.id, targetTag);
+      if (flags.verbose) {
+        console.log(gray(`    Added tag: ${targetTag}`));
+      }
+    }
+  } else if (flags.verbose) {
+    console.log(gray(`    Tag already correct: ${targetTag}`));
+  }
+}
+
 function printProjectSyncHelp(): void {
   console.log(`
 ${bold("SYNC COMMAND")}
 Synchronize Things projects to NocoDB
 
 ${bold("USAGE:")}
-  nocodb-things sync [options]
+  prjsync sync [options]
 
 ${bold("OPTIONS:")}
   -h, --help              Show this help message
@@ -1377,6 +1714,7 @@ ${bold("OPTIONS:")}
   --debug                 Enable debug mode with step-by-step confirmation
   --verify                Query NocoDB after each sync to verify data accuracy
   --uuid <uuid>           Sync only the project with the specified Things UUID
+  --no-status-sync        Disable bidirectional status tag sync (NocoDB Status → Things Tags)
 
 ${bold("BEHAVIOR:")}
   • One-way sync: Things projects → NocoDB records
@@ -1389,6 +1727,28 @@ ${bold("BEHAVIOR:")}
   • Updates Things UUID in NocoDB records
   • Creates new records for unmatched projects
   • Project notes update the Goal field
+  • Bidirectional status sync: NocoDB Status field → Things project tags (enabled by default)
+
+${bold("STATUS TAG SYNC:")}
+  When a Status field is mapped in your configuration, status values from NocoDB are
+  automatically synced back to Things as tags. This enables status management from NocoDB.
+
+  How it works:
+  • After syncing Things → NocoDB, reads the Status field from each NocoDB record
+  • Updates the corresponding Things project's tags to match the NocoDB status
+  • Tags that match valid NocoDB status values are treated as "status tags"
+  • Removes incorrect status tags and adds/updates to match NocoDB
+  • Preserves all non-status tags (tags that don't match any NocoDB status option)
+  • Skips projects with Status containing "Completed:" or "Canceled"
+  • Creates status tags in Things automatically if they don't exist
+
+  Status tag behavior:
+  • If NocoDB Status is empty → All status tags removed from Things
+  • If NocoDB Status = "In Progress" → Things gets tag "In Progress"
+  • Multiple status tags are replaced with the single correct one
+  • Non-status tags (e.g., "Important", "Urgent") remain untouched
+
+  Use --no-status-sync to disable this feature
 
 ${bold("VERBOSE MODE:")}
   For each project being synced, displays:
@@ -1396,6 +1756,7 @@ ${bold("VERBOSE MODE:")}
   • Sync operation type (Create/Update/Link)
   • NocoDB record ID (if updating existing record)
   • Field mappings showing what data is being sent to each NocoDB field
+  • Status tag sync details (current tags, NocoDB status, actions taken)
   • Success confirmation for each operation
 
   Use this mode to verify data is syncing correctly without API-level details.
@@ -1405,7 +1766,7 @@ ${bold("DEBUG MODE:")}
   • Display NocoDB API query parameters (GET request details)
   • Show pagination progress (batches of 100 records)
   • List all NocoDB records found (project names only)
-  • Save full NocoDB response to .nocodb-things-debug/ directory
+  • Save full NocoDB response to .prjsync-debug/ directory
   • Display Things project data before sync
   • Display two-step search process (UUID → Title)
   • Show which NocoDB fields are being checked
@@ -1438,6 +1799,8 @@ ${bold("VERIFICATION MODE:")}
   Use --verify to validate synced data after all records have been synced:
   • After all sync operations complete, each synced record is queried from NocoDB
   • Each field value is compared against what was sent
+  • Status tags are verified to match NocoDB Status field values
+  • Checks for missing tags, incorrect tags, or multiple status tags
   • Mismatches are reported with field name and actual vs expected values
   • Helps identify sync issues, API problems, or data transformation errors
   • Shows summary of verification results (passed/failed counts)
@@ -1452,16 +1815,16 @@ ${bold("SINGLE RECORD SYNC:")}
   • Shows clear error if UUID doesn't match any Things project
 
 ${bold("EXAMPLES:")}
-  nocodb-things                              # Sync all projects (default)
-  nocodb-things sync                         # Sync all projects
-  nocodb-things sync --verbose               # Sync with detailed output for each project
-  nocodb-things sync -v                      # Short form of --verbose
-  nocodb-things sync --dry-run               # Preview changes only
-  nocodb-things sync --debug                 # Debug mode with step-by-step confirmation
-  nocodb-things sync -v --debug              # Combine verbose and debug modes
-  nocodb-things sync --verify                # Sync all projects and verify each one
-  nocodb-things sync --uuid ABC123-DEF456    # Sync only the project with this UUID
-  nocodb-things sync --uuid ABC123 --verify  # Sync one project and verify the result
-  nocodb-things sync --uuid ABC123 -v        # Sync one project with verbose output
+  prjsync                              # Sync all projects (default)
+  prjsync sync                         # Sync all projects
+  prjsync sync --verbose               # Sync with detailed output for each project
+  prjsync sync -v                      # Short form of --verbose
+  prjsync sync --dry-run               # Preview changes only
+  prjsync sync --debug                 # Debug mode with step-by-step confirmation
+  prjsync sync -v --debug              # Combine verbose and debug modes
+  prjsync sync --verify                # Sync all projects and verify each one
+  prjsync sync --uuid ABC123-DEF456    # Sync only the project with this UUID
+  prjsync sync --uuid ABC123 --verify  # Sync one project and verify the result
+  prjsync sync --uuid ABC123 -v        # Sync one project with verbose output
 `);
 }
