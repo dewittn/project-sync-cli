@@ -4,7 +4,9 @@
     "start": "deno run --allow-net --allow-read --allow-write --allow-env --allow-run src/cli/index.ts",
     "test": "deno test --allow-net --allow-read --allow-write --allow-env",
     "fmt": "deno fmt",
-    "lint": "deno lint"
+    "lint": "deno lint",
+    "compile": "deno compile --allow-net --allow-read --allow-write --allow-env --allow-run --output prjsync src/cli/index.ts",
+    "install": "deno task compile && sudo mv prjsync /usr/local/bin/"
   },
   "imports": {
     "@std/assert": "jsr:@std/assert@1",
