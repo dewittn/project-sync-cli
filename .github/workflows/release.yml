@@ -1,0 +1,45 @@
+name: Release
+
+on:
+  release:
+    types: [created]
+
+jobs:
+  build-macos:
+    name: Build macOS binaries
+    runs-on: macos-latest
+    strategy:
+      matrix:
+        target:
+          - arch: arm64
+            deno_target: aarch64-apple-darwin
+          - arch: x64
+            deno_target: x86_64-apple-darwin
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v1
+        with:
+          deno-version: v1.x
+
+      - name: Compile binary
+        run: |
+          deno compile \
+            --allow-net \
+            --allow-read \
+            --allow-write \
+            --allow-env \
+            --allow-run \
+            --target ${{ matrix.target.deno_target }} \
+            --output prjsync-macos-${{ matrix.target.arch }} \
+            src/cli/index.ts
+
+      - name: Upload release asset
+        uses: softprops/action-gh-release@v2
+        with:
+          files: prjsync-macos-${{ matrix.target.arch }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
