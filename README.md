@@ -75,59 +75,6 @@ This will guide you through:
 
 **For detailed setup instructions, see [Getting Started Guide](docs/tutorials/getting-started.md).**
 
-## Command Reference
-
-### `sync` - Sync projects (default command)
-
-```bash
-deno task start sync
-```
-
-**Common options:**
-- `--dry-run` - Preview changes without applying
-- `--verbose` - Show detailed output
-- `--verify` - Verify synced data
-- `--uuid <uuid>` - Sync specific project
-- `--no-status-sync` - Skip status tag sync
-
-### `map` - Configure field mappings
-
-```bash
-deno task start map
-```
-
-Map Things properties (title, id, notes, area, status) to your NocoDB fields.
-
-### `config` - Manage configuration
-
-```bash
-deno task start config --set    # Setup NocoDB connection
-deno task start config --show   # View configuration
-```
-
-### `list-projects` - List Things projects
-
-```bash
-deno task start list-projects
-```
-
-Shows all projects with UUIDs for targeted sync.
-
-### `status` - Show sync status
-
-```bash
-deno task start status
-deno task start status --detailed
-```
-
-### `test` - Test connections
-
-```bash
-deno task start test
-```
-
-**For complete command documentation, see [Commands Reference](docs/reference/commands.md).**
-
 ## Documentation
 
 Comprehensive documentation is organized using the [Diátaxis framework](https://diataxis.fr/) for easy navigation.
