@@ -21,7 +21,7 @@ export class ConfigManager {
 
   constructor(configPath?: string) {
     const home = Deno.env.get("HOME") || Deno.env.get("USERPROFILE") || "";
-    this.configPath = configPath || join(home, ".nocodb-things", "config.json");
+    this.configPath = configPath || join(home, ".prjsync", "config.json");
   }
 
   static async load(configPath?: string): Promise<ConfigManager> {

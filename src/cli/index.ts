@@ -13,10 +13,10 @@ const VERSION = "0.2.0";
 
 function printHelp(): void {
   console.log(`
-${bold("NocoDB-Things Project Sync")} v${VERSION}
+${bold("prjsync")} - Project Sync v${VERSION}
 
 ${bold("USAGE:")}
-  nocodb-things [command] [options]
+  prjsync [command] [options]
 
 ${bold("COMMANDS:")}
   sync              Synchronize Things projects to NocoDB (default)
@@ -32,15 +32,15 @@ ${bold("GLOBAL OPTIONS:")}
   --verbose         Enable verbose logging
 
 ${bold("EXAMPLES:")}
-  nocodb-things                         # Sync projects (default action)
-  nocodb-things sync                    # Sync Things projects to NocoDB
-  nocodb-things list-projects           # List all Things projects
-  nocodb-things map                     # Configure project field mappings
-  nocodb-things config --set            # Interactive configuration setup
-  nocodb-things test                    # Test API connections
+  prjsync                         # Sync projects (default action)
+  prjsync sync                    # Sync Things projects to NocoDB
+  prjsync list-projects           # List all Things projects
+  prjsync map                     # Configure project field mappings
+  prjsync config --set            # Interactive configuration setup
+  prjsync test                    # Test API connections
 
 For more information on a specific command, use:
-  nocodb-things <command> --help
+  prjsync <command> --help
 `);
 }
 
@@ -55,7 +55,7 @@ async function main(): Promise<void> {
     unknown: (arg) => {
       if (arg.startsWith("-")) {
         console.error(red(`Unknown option: ${arg}`));
-        console.log(`Run 'nocodb-things --help' for usage information.`);
+        console.log(`Run 'prjsync --help' for usage information.`);
         Deno.exit(1);
       }
       return true;
@@ -63,7 +63,7 @@ async function main(): Promise<void> {
   });
 
   if (args.version) {
-    console.log(`nocodb-things v${VERSION}`);
+    console.log(`prjsync v${VERSION}`);
     Deno.exit(0);
   }
 
@@ -99,7 +99,7 @@ async function main(): Promise<void> {
         break;
       default:
         console.error(red(`Unknown command: ${command}`));
-        console.log(`Run 'nocodb-things --help' for usage information.`);
+        console.log(`Run 'prjsync --help' for usage information.`);
         Deno.exit(1);
     }
   } catch (error) {

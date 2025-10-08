@@ -94,7 +94,7 @@ async function setConfig(
   config: ConfigManager,
   flags: Record<string, unknown>,
 ): Promise<void> {
-  console.log(bold("Configure NocoDB-Things Sync\n"));
+  console.log(bold("Configure prjsync\n"));
 
   if (flags["nocodb-url"]) {
     config.set("nocodbUrl", String(flags["nocodb-url"]));
@@ -167,7 +167,7 @@ ${bold("CONFIG COMMAND")}
 Configure NocoDB connection and sync settings
 
 ${bold("USAGE:")}
-  nocodb-things config [options]
+  prjsync config [options]
 
 ${bold("OPTIONS:")}
   -h, --help              Show this help message
@@ -192,10 +192,10 @@ ${bold("NOTES:")}
   • Field mappings are managed with the 'map' command
 
 ${bold("EXAMPLES:")}
-  nocodb-things config --set                              # Interactive setup
-  nocodb-things config --show                             # View config
-  nocodb-things config --base-name "My Workspace"         # Set base name
-  nocodb-things config --table-id "mo2x03mdukvj9ap"       # Set table ID
-  nocodb-things config --reset                            # Reset all
+  prjsync config --set                              # Interactive setup
+  prjsync config --show                             # View config
+  prjsync config --base-name "My Workspace"         # Set base name
+  prjsync config --table-id "mo2x03mdukvj9ap"       # Set table ID
+  prjsync config --reset                            # Reset all
 `);
 }

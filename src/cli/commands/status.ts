@@ -23,7 +23,7 @@ export async function statusCommand(
   const config = await ConfigManager.load();
   const state = await StateManager.load();
 
-  console.log(bold("\nNocoDB-Things Sync Status"));
+  console.log(bold("\nprjsync - Sync Status"));
   console.log("─".repeat(50));
 
   // Configuration Status
@@ -37,7 +37,7 @@ export async function statusCommand(
     }
   } else {
     console.log(red("  ✗ Not configured"));
-    console.log(yellow("  Run 'nocodb-things config --set' to configure"));
+    console.log(yellow("  Run 'prjsync config --set' to configure"));
   }
 
   // Last Sync Status
@@ -163,14 +163,14 @@ ${bold("STATUS COMMAND")}
 Show current sync status and statistics
 
 ${bold("USAGE:")}
-  nocodb-things status [options]
+  prjsync status [options]
 
 ${bold("OPTIONS:")}
   -h, --help       Show this help message
   -d, --detailed   Show detailed status information
 
 ${bold("EXAMPLES:")}
-  nocodb-things status              # Basic status
-  nocodb-things status --detailed   # Detailed status with connections
+  prjsync status              # Basic status
+  prjsync status --detailed   # Detailed status with connections
 `);
 }

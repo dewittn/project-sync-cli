@@ -36,7 +36,7 @@ export async function testCommand(
 
     if (!config.get("nocodbUrl") || !config.get("nocodbToken")) {
       console.log(red("  ✗ NocoDB not configured"));
-      console.log(yellow("    Run 'nocodb-things config --set' first"));
+      console.log(yellow("    Run 'prjsync config --set' first"));
       allTestsPassed = false;
     } else {
       try {
@@ -147,7 +147,7 @@ ${bold("TEST COMMAND")}
 Test connections to NocoDB and Things
 
 ${bold("USAGE:")}
-  nocodb-things test [options]
+  prjsync test [options]
 
 ${bold("OPTIONS:")}
   -h, --help     Show this help message
@@ -155,8 +155,8 @@ ${bold("OPTIONS:")}
   -t, --things   Test only Things connection
 
 ${bold("EXAMPLES:")}
-  nocodb-things test              # Test all connections
-  nocodb-things test --nocodb     # Test only NocoDB
-  nocodb-things test --things     # Test only Things
+  prjsync test              # Test all connections
+  prjsync test --nocodb     # Test only NocoDB
+  prjsync test --things     # Test only Things
 `);
 }

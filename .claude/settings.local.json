@@ -14,7 +14,8 @@
       "Read(//Users/dewittn/.nocodb-things/**)",
       "Bash(cat:*)",
       "Bash(deno fmt:*)",
-      "Bash(deno check:*)"
+      "Bash(deno check:*)",
+      "WebFetch(domain:pipedream.com)"
     ],
     "deny": [],
     "ask": []

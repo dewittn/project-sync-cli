@@ -26,7 +26,7 @@ export class StateManager {
 
   constructor(statePath?: string) {
     const home = Deno.env.get("HOME") || Deno.env.get("USERPROFILE") || "";
-    this.statePath = statePath || join(home, ".nocodb-things", "state.json");
+    this.statePath = statePath || join(home, ".prjsync", "state.json");
     this.state = {
       syncHistory: [],
       statistics: {

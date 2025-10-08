@@ -5,8 +5,8 @@ code in this repository.
 
 ## Project Overview
 
-NocoDB-Things Project Sync - A Deno TypeScript CLI that synchronizes projects
-from Things 3 (macOS task manager) to NocoDB (database platform).
+prjsync - A Deno TypeScript CLI that synchronizes projects from Things 3 (macOS
+task manager) to NocoDB (database platform).
 
 ## Commands
 
@@ -29,7 +29,7 @@ concerns:
 - **API Layer** (`src/api/`): Abstractions for NocoDB REST API and Things
   AppleScript integration
 - **Configuration** (`src/config/`): Persistent configuration management stored
-  in `~/.nocodb-things/`
+  in `~/.prjsync/`
 - **State Management** (`src/utils/state.ts`): Tracks sync history and
   statistics
 

@@ -1,4 +1,5 @@
 # Debug output directory
+.prjsync-debug/
 .nocodb-things-debug/
 
 # OS files

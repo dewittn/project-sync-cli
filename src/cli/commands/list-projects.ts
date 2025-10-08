@@ -21,7 +21,7 @@ export async function listProjectsCommand(
 ${bold("list-projects")} - List all projects found in Things
 
 ${bold("USAGE:")}
-  nocodb-things list-projects [options]
+  prjsync list-projects [options]
 
 ${bold("OPTIONS:")}
   -h, --help                Show this help message
@@ -34,9 +34,9 @@ ${bold("DESCRIPTION:")}
   information about specific projects including area, notes, UUID, and deadline.
 
 ${bold("EXAMPLES:")}
-  nocodb-things list-projects              # List all projects
-  nocodb-things list-projects -d 5         # Show details for project #5
-  nocodb-things list-projects -p "My Project"  # Show details for "My Project"
+  prjsync list-projects              # List all projects
+  prjsync list-projects -d 5         # Show details for project #5
+  prjsync list-projects -p "My Project"  # Show details for "My Project"
 `);
     return;
   }
