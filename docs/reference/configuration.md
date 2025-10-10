@@ -405,31 +405,116 @@ Use different machines or user accounts for different environments.
 
 ## Security Considerations
 
-### File Permissions
+### ⚠️ Important: Credential Storage
 
-Configuration file should have restrictive permissions:
+**API tokens are stored in plain text** in the configuration file at:
+```
+~/.prjsync/config.json
+```
+
+While the configuration file is created with user-only permissions, the NocoDB API token is **not encrypted** and is stored as plain text in this file. This means:
+
+- Anyone with read access to this file can see your API token
+- If your home directory is backed up, the token is included in backups
+- If you share your computer, other users with sudo/admin access could potentially read this file
+
+### Recommended Security Practices
+
+#### 1. Set Restrictive File Permissions
+
+Ensure your configuration file has restrictive permissions:
 
 ```bash
 chmod 600 ~/.prjsync/config.json
 ```
 
-This ensures only your user can read/write the file.
+This ensures only your user account can read/write the file.
 
-### API Token Security
+**Verify permissions:**
+```bash
+ls -l ~/.prjsync/config.json
+# Should show: -rw------- (600)
+```
 
-- **Never commit** config.json to version control
-- **Never share** your API token
-- **Regenerate tokens** if compromised
-- **Use limited scope tokens** when possible
+#### 2. Protect Your Configuration Directory
 
-### Encrypted Storage
+Secure the entire prjsync directory:
 
-API tokens are stored with basic encryption in the config file. This provides protection against casual inspection but is not cryptographically secure.
+```bash
+chmod 700 ~/.prjsync
+```
 
-For high-security environments:
-- Use environment variables for tokens (not yet supported)
-- Store config on encrypted disk
-- Regenerate tokens frequently
+#### 3. API Token Best Practices
+
+- **Never commit** `config.json` to version control
+- **Never share** your API token with others
+- **Regenerate tokens** immediately if you suspect compromise
+- **Use limited scope tokens** when possible in NocoDB
+- **Revoke unused tokens** regularly in NocoDB settings
+
+#### 4. Backup Security
+
+If you backup your home directory:
+- Be aware that backups contain your API token
+- Encrypt backups or exclude `~/.prjsync/config.json`
+- Store backups securely
+
+Example to exclude from Time Machine:
+```bash
+tmutil addexclusion ~/.prjsync
+```
+
+#### 5. Shared Computer Considerations
+
+If you share your computer with others:
+- Remember that admin users can potentially read any file
+- Consider using a separate user account for prjsync
+- Revoke and regenerate tokens when switching users
+
+### High-Security Environments
+
+For environments requiring enhanced security:
+
+1. **Use a dedicated NocoDB token** with minimal permissions
+   - Only grant read/write access to the specific table
+   - Create a service account in NocoDB specifically for prjsync
+
+2. **Store configuration on encrypted storage**
+   - Use FileVault (macOS disk encryption)
+   - Or store `~/.prjsync/` on an encrypted volume
+
+3. **Rotate tokens frequently**
+   ```bash
+   # Generate new token in NocoDB
+   deno task start config --set
+   # Enter new token when prompted
+   ```
+
+4. **Monitor token usage**
+   - Regularly check NocoDB audit logs for unexpected API usage
+
+### What to Do If Your Token Is Compromised
+
+1. **Immediately revoke the token** in NocoDB:
+   - Log into NocoDB
+   - Go to Account Settings → Tokens
+   - Delete the compromised token
+
+2. **Generate a new token** in NocoDB
+
+3. **Update your configuration**:
+   ```bash
+   deno task start config --set
+   ```
+
+4. **Review NocoDB audit logs** for any unauthorized activity
+
+### Future Security Improvements
+
+The following security enhancements are planned for future releases:
+- Environment variable support for API tokens
+- Encrypted configuration file storage
+- Integration with system keychain (macOS Keychain)
 
 ---
 

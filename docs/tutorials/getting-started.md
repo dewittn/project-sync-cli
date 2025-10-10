@@ -73,7 +73,21 @@ You'll be prompted for the following information:
    - Find this in the NocoDB URL when viewing your table
    - Example: If the URL is `https://nocodb.example.com/nc/p01234567/t_abcdefgh`, the table ID is `t_abcdefgh`
 
-The configuration is saved securely in `~/.prjsync/config.json`.
+The configuration is saved to `~/.prjsync/config.json`.
+
+### 🔒 Security Note
+
+**Important:** Your NocoDB API token is stored in plain text in `~/.prjsync/config.json`. To protect your credentials:
+
+```bash
+# Set restrictive permissions on the config file
+chmod 600 ~/.prjsync/config.json
+
+# Protect the entire directory
+chmod 700 ~/.prjsync
+```
+
+Never commit this file to version control or share it with others. See the [Configuration Security Guide](../reference/configuration.md#security-considerations) for detailed security recommendations.
 
 ## Step 5: Verify Configuration
 
