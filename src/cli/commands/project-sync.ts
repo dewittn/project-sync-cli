@@ -21,7 +21,14 @@ export async function projectSyncCommand(
   globalFlags: Record<string, unknown>,
 ): Promise<void> {
   const flags = parseArgs(args, {
-    boolean: ["help", "dry-run", "debug", "verbose", "verify", "no-status-sync"],
+    boolean: [
+      "help",
+      "dry-run",
+      "debug",
+      "verbose",
+      "verify",
+      "no-status-sync",
+    ],
     string: ["uuid"],
     alias: {
       h: "help",
@@ -585,7 +592,9 @@ export async function projectSyncCommand(
                 } catch (error) {
                   tagErrors.push({
                     project: project.title,
-                    error: error instanceof Error ? error.message : String(error),
+                    error: error instanceof Error
+                      ? error.message
+                      : String(error),
                   });
                 }
               }
@@ -872,7 +881,7 @@ export async function projectSyncCommand(
           expectedData,
           projectTitle,
           statusSyncEnabled && validStatusValues && statusFieldName &&
-              validStatusValues.length > 0
+            validStatusValues.length > 0
             ? {
               thingsClient,
               project,
@@ -981,6 +990,12 @@ async function getThingsProjects(): Promise<ThingsProject[]> {
 
           try
             set projNotes to notes of proj as string
+            -- Replace newlines with placeholder to prevent parsing issues
+            set AppleScript's text item delimiters to linefeed
+            set notesList to text items of projNotes
+            set AppleScript's text item delimiters to "<<NEWLINE>>"
+            set projNotes to notesList as string
+            set AppleScript's text item delimiters to ""
           end try
 
           try
@@ -1027,10 +1042,12 @@ async function getThingsProjects(): Promise<ThingsProject[]> {
       );
       if (match) {
         const [_, id, title, notes, area] = match;
+        // Replace placeholder back to actual newlines
+        const restoredNotes = notes ? notes.replace(/<<NEWLINE>>/g, "\n") : "";
         const project: ThingsProject = {
           id: id || "",
           title: title || "",
-          notes: notes || "",
+          notes: restoredNotes,
           area: cleanAreaName(area) || undefined,
         };
         if (project.id && project.title) {
@@ -1567,7 +1584,9 @@ async function verifyRecord(
                 );
               } else if (statusTags[0] !== expectedTag) {
                 mismatches.push(
-                  `Status tag mismatch: NocoDB Status="${expectedTag}" but Things has tag="${statusTags[0]}"`,
+                  `Status tag mismatch: NocoDB Status="${expectedTag}" but Things has tag="${
+                    statusTags[0]
+                  }"`,
                 );
               }
             }
@@ -1645,7 +1664,9 @@ async function syncStatusTags(
 
   if (flags.verbose) {
     console.log(gray(`\n  Status Tag Sync:`));
-    console.log(gray(`    Current tags: ${currentTags.join(", ") || "(none)"}`));
+    console.log(
+      gray(`    Current tags: ${currentTags.join(", ") || "(none)"}`),
+    );
     console.log(
       gray(`    NocoDB Status: ${targetTag || "(empty)"}`),
     );

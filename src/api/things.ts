@@ -339,8 +339,19 @@ export class ThingsClient {
             -- No repeater property means not recurring
           end try
 
-          -- Only include non-recurring projects
-          if not isRecurring then
+          -- Check if project is completed
+          set isCompleted to false
+          try
+            set projStatus to status of proj
+            if projStatus is completed then
+              set isCompleted to true
+            end if
+          on error
+            -- If we can't get status, assume not completed
+          end try
+
+          -- Only include non-recurring and non-completed projects
+          if not isRecurring and not isCompleted then
             set end of projectNames to name of proj
           end if
         end repeat
@@ -386,8 +397,19 @@ export class ThingsClient {
               -- No repeater property means not recurring
             end try
 
-            -- Only return non-recurring projects
-            if not isRecurring then
+            -- Check if project is completed
+            set isCompleted to false
+            try
+              set projStatus to status of p
+              if projStatus is completed then
+                set isCompleted to true
+              end if
+            on error
+              -- If we can't get status, assume not completed
+            end try
+
+            -- Only return non-recurring and non-completed projects
+            if not isRecurring and not isCompleted then
               set foundProject to p
               exit repeat
             end if
