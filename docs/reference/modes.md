@@ -1,19 +1,22 @@
 # Operation Modes Reference
 
-Complete reference for prjsync operation modes: Verbose, Debug, Verification, and Dry-run.
+Complete reference for prjsync operation modes: Verbose, Debug, Verification,
+and Dry-run.
 
 ## Overview
 
-prjsync supports four special operation modes that provide different levels of detail and control during sync operations.
+prjsync supports four special operation modes that provide different levels of
+detail and control during sync operations.
 
-| Mode | Flag | Purpose | Output Level |
-|------|------|---------|--------------|
-| **Dry-run** | `--dry-run` | Preview changes without applying | Normal |
-| **Verbose** | `--verbose`, `-v` | Detailed sync information | High |
-| **Debug** | `--debug` | Step-by-step with API details | Very High |
-| **Verification** | `--verify` | Validate synced data | Normal + Verification |
+| Mode             | Flag              | Purpose                          | Output Level          |
+| ---------------- | ----------------- | -------------------------------- | --------------------- |
+| **Dry-run**      | `--dry-run`       | Preview changes without applying | Normal                |
+| **Verbose**      | `--verbose`, `-v` | Detailed sync information        | High                  |
+| **Debug**        | `--debug`         | Step-by-step with API details    | Very High             |
+| **Verification** | `--verify`        | Validate synced data             | Normal + Verification |
 
 **Modes can be combined:**
+
 ```bash
 deno task start sync --verbose --dry-run
 deno task start sync --debug --verify
@@ -92,16 +95,19 @@ No changes were made (dry-run mode)
 ### Limitations
 
 **Accurate for:**
+
 - Which projects will be synced
 - Whether records will be created or updated
 - Basic matching logic
 
 **Not accurate for:**
+
 - Actual NocoDB field validations
 - Server-side constraints
 - NocoDB automations that trigger on changes
 
-**Recommendation:** For critical syncs, run dry-run first, then run actual sync and monitor results.
+**Recommendation:** For critical syncs, run dry-run first, then run actual sync
+and monitor results.
 
 ---
 
@@ -121,6 +127,7 @@ Show detailed information about each project being synced.
 ### What It Shows
 
 For each project:
+
 1. **Things project data** - All property values
 2. **Operation type** - Create new or update existing
 3. **NocoDB record ID** - For updates
@@ -215,11 +222,13 @@ Status Tag Sync:
 ### Performance Impact
 
 Verbose mode generates significant output:
+
 - **Many projects** (100+) → Large amount of text
 - **Slow terminals** → May appear to hang while rendering
 - **Log files** → Large files if redirected
 
-**Recommendation:** Use verbose mode for targeted debugging with `--uuid`, not for regular syncs of many projects.
+**Recommendation:** Use verbose mode for targeted debugging with `--uuid`, not
+for regular syncs of many projects.
 
 ---
 
@@ -238,6 +247,7 @@ Step-by-step sync execution with full API details and confirmation prompts.
 ### What It Shows
 
 Everything in Verbose mode, plus:
+
 1. **NocoDB API queries** - Exact query parameters
 2. **Pagination details** - Batches of records fetched
 3. **All NocoDB records** - Complete list
@@ -377,11 +387,13 @@ Debug mode saves NocoDB responses to:
 ```
 
 **Example:**
+
 ```
 .prjsync-debug/nocodb-records-2025-03-15-103045.json
 ```
 
 **Contents:**
+
 - All NocoDB records fetched
 - Complete record data
 - Useful for offline analysis
@@ -389,11 +401,13 @@ Debug mode saves NocoDB responses to:
 ### Performance Impact
 
 Debug mode is **significantly slower**:
+
 - Prompts after each project
 - Extensive output generation
 - File I/O for debug files
 
-**Recommendation:** Use only for troubleshooting specific issues, never for regular syncs.
+**Recommendation:** Use only for troubleshooting specific issues, never for
+regular syncs.
 
 ---
 
@@ -412,6 +426,7 @@ Validate that synced data in NocoDB matches what was sent from Things.
 ### What It Does
 
 After sync completes:
+
 1. **Re-queries** each synced record from NocoDB
 2. **Compares** fetched values against expected values
 3. **Checks status tags** against NocoDB Status field
@@ -495,12 +510,14 @@ Verification Results:
 ### Handling Verification Failures
 
 **For field mismatches:**
+
 1. Check NocoDB field types
 2. Look for automations or webhooks
 3. Increase field length limits if truncated
 4. Use `--debug` to see exact values sent
 
 **For status tag mismatches:**
+
 1. Check that status field is mapped correctly
 2. Verify status options in NocoDB match tag names exactly
 3. Allow more time between sync and verification
@@ -509,11 +526,13 @@ Verification Results:
 ### Performance Impact
 
 Verification adds extra API calls:
+
 - One API call per synced project
 - Doubles network traffic for the sync
 - Increases sync time
 
-**Recommendation:** Use verification periodically for quality checks, not for every sync.
+**Recommendation:** Use verification periodically for quality checks, not for
+every sync.
 
 ---
 
@@ -522,54 +541,66 @@ Verification adds extra API calls:
 ### Useful Combinations
 
 #### Preview with Details
+
 ```bash
 deno task start sync --dry-run --verbose
 ```
+
 See exactly what would be synced without making changes.
 
 #### Safe Verification
+
 ```bash
 deno task start sync --dry-run --verify
 ```
+
 Note: Verification has no effect in dry-run mode (nothing to verify).
 
 #### Deep Debugging
+
 ```bash
 deno task start sync --debug --verbose
 ```
+
 Maximum detail (verbose is implied in debug, so this is redundant).
 
 #### Test Single Project
+
 ```bash
 deno task start sync --uuid ABC123 --verbose --verify
 ```
+
 Sync one project with details and verification.
 
 #### Safe Testing
+
 ```bash
 deno task start sync --uuid ABC123 --dry-run --verbose
 ```
+
 Preview one project in detail without changes.
 
 ### Invalid Combinations
 
 #### Verify with Dry-run
+
 ```bash
 deno task start sync --dry-run --verify
 ```
+
 Verification has no effect (nothing was actually synced to verify).
 
 ---
 
 ## Quick Reference
 
-| Mode | Use For | Output | Speed | Use Regularly? |
-|------|---------|--------|-------|----------------|
-| **Normal** | Regular syncs | Minimal | Fast | ✓ Yes |
-| **Dry-run** | Preview changes | Normal | Fast | ✓ Before big changes |
-| **Verbose** | Understand syncs | High | Moderate | Sometimes |
-| **Debug** | Troubleshoot issues | Very High | Slow | Rarely |
-| **Verify** | Check accuracy | Normal + Reports | Slow | Occasionally |
+| Mode        | Use For             | Output           | Speed    | Use Regularly?       |
+| ----------- | ------------------- | ---------------- | -------- | -------------------- |
+| **Normal**  | Regular syncs       | Minimal          | Fast     | ✓ Yes                |
+| **Dry-run** | Preview changes     | Normal           | Fast     | ✓ Before big changes |
+| **Verbose** | Understand syncs    | High             | Moderate | Sometimes            |
+| **Debug**   | Troubleshoot issues | Very High        | Slow     | Rarely               |
+| **Verify**  | Check accuracy      | Normal + Reports | Slow     | Occasionally         |
 
 ---
 

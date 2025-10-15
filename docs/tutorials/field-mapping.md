@@ -1,22 +1,26 @@
 # Field Mapping Tutorial
 
-This tutorial walks you through the process of setting up field mappings between Things 3 projects and your NocoDB table. By the end, you'll understand how to create effective mappings for any NocoDB schema.
+This tutorial walks you through the process of setting up field mappings between
+Things 3 projects and your NocoDB table. By the end, you'll understand how to
+create effective mappings for any NocoDB schema.
 
 ## What is Field Mapping?
 
-Field mapping tells prjsync which NocoDB fields correspond to which Things project properties. Without proper mappings, prjsync won't know where to store your project data.
+Field mapping tells prjsync which NocoDB fields correspond to which Things
+project properties. Without proper mappings, prjsync won't know where to store
+your project data.
 
 ### Things Project Properties
 
 Every Things project has these properties:
 
-| Property | Description | Example |
-|----------|-------------|---------|
-| `title` | Project name | "Launch New Website" |
-| `id` | Unique identifier (UUID) | "ABC123-DEF456-GHI789" |
-| `notes` | Project description | "Build and deploy the new company website" |
-| `area` | Project area (if assigned) | "Work", "Personal", etc. |
-| `status` | For bidirectional sync (optional) | Not directly readable from Things |
+| Property | Description                       | Example                                    |
+| -------- | --------------------------------- | ------------------------------------------ |
+| `title`  | Project name                      | "Launch New Website"                       |
+| `id`     | Unique identifier (UUID)          | "ABC123-DEF456-GHI789"                     |
+| `notes`  | Project description               | "Build and deploy the new company website" |
+| `area`   | Project area (if assigned)        | "Work", "Personal", etc.                   |
+| `status` | For bidirectional sync (optional) | Not directly readable from Things          |
 
 ## Tutorial: Mapping Your First Table
 
@@ -24,7 +28,8 @@ Let's walk through setting up mappings for a typical NocoDB project table.
 
 ### Step 1: Examine Your NocoDB Table
 
-Before starting, look at your NocoDB table and note the field names. For this tutorial, let's assume you have a table with these fields:
+Before starting, look at your NocoDB table and note the field names. For this
+tutorial, let's assume you have a table with these fields:
 
 - **Project Name** (Single Line Text)
 - **Things UUID** (Single Line Text)
@@ -60,7 +65,8 @@ Auto-mapping can save time by detecting common field names. Choose option `3`:
 Choose an option: 3
 ```
 
-prjsync will scan your NocoDB table and look for fields with common names. In our example, it might create these mappings automatically:
+prjsync will scan your NocoDB table and look for fields with common names. In
+our example, it might create these mappings automatically:
 
 ```
 Auto-detected mappings:
@@ -72,7 +78,8 @@ Auto-detected mappings:
 
 ### Step 4: Add Remaining Mappings
 
-Auto-mapping didn't find all the fields we need. Let's add the missing ones manually. Choose option `1`:
+Auto-mapping didn't find all the fields we need. Let's add the missing ones
+manually. Choose option `1`:
 
 ```
 Choose an option: 1
@@ -196,17 +203,20 @@ Your mappings are now saved to `~/.prjsync/config.json`.
 If your NocoDB table doesn't have a dedicated UUID field, you have two options:
 
 **Option A: Add a UUID field to your table**
+
 1. In NocoDB, add a new field called "Things UUID" (Single Line Text)
 2. Map it to the `id` property in prjsync
 
 **Option B: Use title matching only**
+
 - Don't map the `id` property
 - prjsync will match projects by title only
 - ⚠️ Warning: Less reliable if project names change or aren't unique
 
 ### Scenario 2: Multiple Description Fields
 
-If you have multiple text fields in NocoDB (Goals, Description, Notes), choose the one that best fits your workflow:
+If you have multiple text fields in NocoDB (Goals, Description, Notes), choose
+the one that best fits your workflow:
 
 ```
 # Map to the primary description field
@@ -217,7 +227,8 @@ The other fields can be managed manually in NocoDB or ignored by prjsync.
 
 ### Scenario 3: Not Using Areas in Things
 
-If you don't use Areas in Things, simply don't map the `area` property. prjsync will skip it during sync.
+If you don't use Areas in Things, simply don't map the `area` property. prjsync
+will skip it during sync.
 
 ### Scenario 4: Remapping Fields
 
@@ -225,7 +236,8 @@ If you made a mistake or want to change a mapping:
 
 1. Run `deno task start map`
 2. The interactive menu doesn't have a "remove" option yet
-3. Edit `~/.prjsync/config.json` manually and remove the mapping from the `fieldMappings` section
+3. Edit `~/.prjsync/config.json` manually and remove the mapping from the
+   `fieldMappings` section
 4. Run `deno task start map` again to add the correct mapping
 
 ## Testing Your Mappings
@@ -236,7 +248,8 @@ After setting up mappings, test them with a dry-run:
 deno task start sync --dry-run
 ```
 
-This shows you exactly what data would be synced to which fields without making actual changes.
+This shows you exactly what data would be synced to which fields without making
+actual changes.
 
 For detailed output showing the field mappings in action:
 
@@ -249,36 +262,44 @@ deno task start sync --dry-run --verbose
 ### Mistake 1: Mapping Multiple Things Properties to the Same Field
 
 **Wrong:**
+
 ```
 title → Project Name
 notes → Project Name
 ```
 
-Each NocoDB field can only be mapped to one Things property. The second mapping will overwrite the first.
+Each NocoDB field can only be mapped to one Things property. The second mapping
+will overwrite the first.
 
 ### Mistake 2: Not Mapping the UUID Field
 
-Without a UUID mapping, prjsync can only match projects by title. This is less reliable and can cause duplicates if project names change.
+Without a UUID mapping, prjsync can only match projects by title. This is less
+reliable and can cause duplicates if project names change.
 
 **Always map the `id` property to a dedicated UUID field in NocoDB.**
 
 ### Mistake 3: Using the Wrong Field Type for UUID
 
 The NocoDB field for storing UUIDs should be:
+
 - **Single Line Text** ✓
 - Not Long Text, Number, or any other type
 
 ### Mistake 4: Case Sensitivity Issues
 
-NocoDB field names are case-sensitive. "Project Name" and "project name" are different fields. Make sure you're selecting the exact field name.
+NocoDB field names are case-sensitive. "Project Name" and "project name" are
+different fields. Make sure you're selecting the exact field name.
 
 ## Next Steps
 
 Now that you've set up field mappings, you're ready to:
 
-- **[Perform your first sync](getting-started.md#step-7-your-first-sync-dry-run)** - Sync your projects
-- **[Set up status synchronization](../how-to/status-sync.md)** - Learn more about bidirectional status sync
-- **[Explore sync options](../how-to/sync-projects.md)** - Different ways to sync your projects
+- **[Perform your first sync](getting-started.md#step-7-your-first-sync-dry-run)** -
+  Sync your projects
+- **[Set up status synchronization](../how-to/status-sync.md)** - Learn more
+  about bidirectional status sync
+- **[Explore sync options](../how-to/sync-projects.md)** - Different ways to
+  sync your projects
 
 ## Quick Reference
 
@@ -307,6 +328,7 @@ When using `--add`, the syntax is:
 ```
 
 Examples:
+
 ```bash
 deno task start map --add "Project Name:title"
 deno task start map --add "Things UUID:id"
@@ -317,4 +339,5 @@ deno task start map --add "Status:status"
 
 ---
 
-Need help? Check the [Troubleshooting Guide](../how-to/troubleshooting.md) for common issues.
+Need help? Check the [Troubleshooting Guide](../how-to/troubleshooting.md) for
+common issues.

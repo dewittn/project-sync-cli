@@ -1,6 +1,7 @@
 # Development Guide
 
-This guide covers development setup, testing, code quality, and contributing to prjsync.
+This guide covers development setup, testing, code quality, and contributing to
+prjsync.
 
 ## Prerequisites
 
@@ -49,6 +50,7 @@ deno task dev
 ```
 
 **Features:**
+
 - Auto-restart on file changes (`--watch`)
 - All permissions enabled
 - Faster development cycle
@@ -95,6 +97,7 @@ deno task fmt
 **Configuration:** `deno.json` → `fmt` section
 
 **Rules:**
+
 - 2 spaces indentation
 - Line width: 80 characters
 - Single quotes for strings
@@ -113,6 +116,7 @@ deno lint src/api/nocodb.ts
 **Configuration:** `deno.json` → `lint` section
 
 **Custom rules:**
+
 - No unused variables
 - No unreachable code
 - Consistent return types
@@ -131,7 +135,8 @@ Catches TypeScript errors without execution.
 
 ## Project Structure
 
-See [Project Structure](explanation/project-structure.md) for detailed code organization.
+See [Project Structure](explanation/project-structure.md) for detailed code
+organization.
 
 ### Quick Overview
 
@@ -153,23 +158,26 @@ tests/             # Test files (*_test.ts)
 Follow these conventions:
 
 **File Naming:**
+
 ```
 kebab-case.ts     # Module files
 kebab-case_test.ts # Test files
 ```
 
 **Function Naming:**
+
 ```typescript
 // Use camelCase for functions
-async function syncProjects() { }
-function parseArgs() { }
+async function syncProjects() {}
+function parseArgs() {}
 
 // Use PascalCase for classes
-class NocoDBClient { }
-class ConfigManager { }
+class NocoDBClient {}
+class ConfigManager {}
 ```
 
 **Import Order:**
+
 ```typescript
 // 1. Standard library
 import { parseArgs } from "@std/cli/parse-args";
@@ -229,7 +237,7 @@ const data: NocoDBRecord = response.json();
 ```typescript
 if (!config.nocodbUrl) {
   throw new Error(
-    "NocoDB URL not configured. Run: deno task start config --set"
+    "NocoDB URL not configured. Run: deno task start config --set",
   );
 }
 ```
@@ -259,7 +267,7 @@ async function fetchRecords() {
 
 // ✗ Avoid
 function fetchRecords() {
-  return fetch(url).then(r => r.json());
+  return fetch(url).then((r) => r.json());
 }
 ```
 
@@ -318,7 +326,7 @@ For testing without external dependencies:
 const mockFetch = (url: string) => {
   return Promise.resolve({
     ok: true,
-    json: () => Promise.resolve({ records: [] })
+    json: () => Promise.resolve({ records: [] }),
   });
 };
 
@@ -355,6 +363,7 @@ deno task start sync --debug --uuid ABC123
 ```
 
 Shows:
+
 - API requests/responses
 - Search logic
 - Field mappings
@@ -387,6 +396,7 @@ Create `.vscode/launch.json`:
 ```
 
 **Usage:**
+
 1. Set breakpoints in code
 2. Press F5 or click "Debug"
 3. Step through code execution
@@ -423,10 +433,12 @@ deno task compile
 ```
 
 **Output:**
+
 - `dist/prjsync` (macOS/Linux)
 - `dist/prjsync.exe` (Windows)
 
 **Features:**
+
 - No Deno runtime required
 - Single executable file
 - All dependencies bundled
@@ -440,6 +452,7 @@ deno task install
 **Installs to:** `/usr/local/bin/prjsync`
 
 **Usage after install:**
+
 ```bash
 prjsync sync
 prjsync map
@@ -507,6 +520,7 @@ Follow [Conventional Commits](https://www.conventionalcommits.org/):
 ```
 
 **Types:**
+
 - `feat` - New feature
 - `fix` - Bug fix
 - `docs` - Documentation changes
@@ -515,6 +529,7 @@ Follow [Conventional Commits](https://www.conventionalcommits.org/):
 - `chore` - Maintenance tasks
 
 **Examples:**
+
 ```
 feat(sync): add status tag synchronization
 fix(config): handle missing configuration file
@@ -525,27 +540,33 @@ refactor(api): simplify NocoDB client
 ### Pull Request Guidelines
 
 **PR Description should include:**
+
 - What changed
 - Why it changed
 - How to test
 - Related issues (if any)
 
 **Example:**
+
 ```markdown
 ## Summary
+
 Adds bidirectional status synchronization from NocoDB to Things.
 
 ## Changes
+
 - New status sync logic in sync command
 - Updated NocoDB client to fetch field options
 - Added tag management to Things client
 
 ## Testing
+
 1. Map a Status field
 2. Run: `deno task start sync --verbose`
 3. Verify status tags update in Things
 
 ## Related Issues
+
 Fixes #42
 ```
 
@@ -638,12 +659,14 @@ import { assertEquals } from "@std/assert";
 ### AppleScript not working
 
 Ensure Things 3 is running and permissions granted:
+
 - System Preferences → Security & Privacy → Privacy → Automation
 - Enable Deno/Terminal to control Things
 
 ### NocoDB API errors
 
 Check:
+
 - API token is valid
 - Table ID is correct
 - Network connectivity

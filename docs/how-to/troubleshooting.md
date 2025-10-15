@@ -31,11 +31,13 @@ Follow the prompts to enter your NocoDB connection details.
 **Solution:**
 
 1. Check your configuration:
+
 ```bash
 deno task start config --show
 ```
 
 2. If it looks wrong, reset and reconfigure:
+
 ```bash
 deno task start config --reset
 deno task start config --set
@@ -48,11 +50,13 @@ deno task start config --set
 Configuration is stored at: `~/.prjsync/config.json`
 
 **View the file:**
+
 ```bash
 cat ~/.prjsync/config.json
 ```
 
 **Delete the file:**
+
 ```bash
 rm ~/.prjsync/config.json
 ```
@@ -69,9 +73,11 @@ rm ~/.prjsync/config.json
 
 1. **Install Things 3** from the Mac App Store
 2. **Launch Things 3** - It must be running for prjsync to work
-3. **Grant permissions** - First time you run prjsync, macOS may ask for permission to control Things
+3. **Grant permissions** - First time you run prjsync, macOS may ask for
+   permission to control Things
 
 **Test the connection:**
+
 ```bash
 deno task start test
 ```
@@ -83,6 +89,7 @@ deno task start test
 **Symptom:** HTTP errors when trying to connect to NocoDB.
 
 **Possible Causes:**
+
 1. Incorrect NocoDB URL
 2. Invalid or expired API token
 3. Wrong table ID
@@ -98,6 +105,7 @@ deno task start config --show
 ```
 
 Check:
+
 - URL format (should be `https://nocodb.example.com`, no trailing slash)
 - Table ID format (should be like `t_abcdefgh`)
 
@@ -113,6 +121,7 @@ deno task start test --nocodb
 2. Go to Profile → Account Settings → Tokens
 3. Create a new token
 4. Update your configuration:
+
 ```bash
 deno task start config --set
 ```
@@ -150,6 +159,7 @@ If this fails, check your network connection or NocoDB server status.
    - Scope: Full access to the base/workspace
 
 3. Update configuration with the new token:
+
 ```bash
 deno task start config --set
 ```
@@ -173,11 +183,13 @@ deno task start map --list
 **Step 2: Verify UUID field mapping**
 
 You must have a mapping for the `id` (UUID) property:
+
 ```
 id → Things UUID
 ```
 
 If this is missing, add it:
+
 ```bash
 deno task start map
 ```
@@ -201,6 +213,7 @@ This shows the search process and why matches aren't found.
 **Cause:** Projects are filtered out by prjsync.
 
 **Excluded project types:**
+
 - Completed projects
 - Canceled projects
 - Recurring projects (templates)
@@ -212,6 +225,7 @@ This shows the search process and why matches aren't found.
    - Is it marked as recurring/repeating?
 
 2. **List all projects:**
+
 ```bash
 deno task start list-projects
 ```
@@ -219,6 +233,7 @@ deno task start list-projects
 This shows all active projects that prjsync can see.
 
 3. **Use debug mode:**
+
 ```bash
 deno task start sync --debug
 ```
@@ -231,11 +246,13 @@ This shows all fetched projects and why each one is/isn't synced.
 
 **Symptom:** Multiple NocoDB records for the same Things project.
 
-**Cause:** UUID field not mapped, so title matching creates duplicates when titles change.
+**Cause:** UUID field not mapped, so title matching creates duplicates when
+titles change.
 
 **Solution:**
 
 1. **Map UUID field immediately:**
+
 ```bash
 deno task start map
 ```
@@ -248,6 +265,7 @@ Add mapping: `id → <YourUUIDField>`
    - Ensure it has the correct UUID
 
 3. **Re-sync:**
+
 ```bash
 deno task start sync
 ```
@@ -265,6 +283,7 @@ Now prjsync will match by UUID and not create duplicates.
 **Cause 1: Field mapping incorrect**
 
 Check field mappings:
+
 ```bash
 deno task start map --list
 ```
@@ -273,7 +292,8 @@ Verify the Thing property is mapped to the right NocoDB field.
 
 **Cause 2: NocoDB webhooks/automations**
 
-NocoDB automations or webhooks might be overwriting data after prjsync updates it.
+NocoDB automations or webhooks might be overwriting data after prjsync updates
+it.
 
 Check NocoDB base settings → Automations/Webhooks.
 
@@ -284,11 +304,13 @@ Refresh your NocoDB table view (Cmd+R or F5).
 **Solution:**
 
 Use verbose mode to see exactly what's being sent:
+
 ```bash
 deno task start sync --verbose --uuid <project-uuid>
 ```
 
 Check:
+
 - Things data section
 - Field mappings section
 - HTTP request parameters
@@ -307,7 +329,8 @@ NocoDB automations modify data after prjsync updates it.
 
 **Cause 2: Field type conversions**
 
-NocoDB might format values differently (e.g., trimming whitespace, changing line breaks).
+NocoDB might format values differently (e.g., trimming whitespace, changing line
+breaks).
 
 **Cause 3: Read/write field mismatch**
 
@@ -316,6 +339,7 @@ Reading from a different field than the one being written to.
 **Solution:**
 
 1. **Use debug mode to see responses:**
+
 ```bash
 deno task start sync --debug --uuid <project-uuid>
 ```
@@ -356,6 +380,7 @@ Look for the "Status Tag Sync" section. If missing, status sync is disabled.
 **Step 3: Verify Status field type**
 
 In NocoDB:
+
 - Field must be "Single Select"
 - Must have defined options (e.g., To Do, In Progress, Done)
 
@@ -363,7 +388,8 @@ In NocoDB:
 
 macOS might be blocking prjsync from modifying Things tags.
 
-Grant permissions in System Preferences → Security & Privacy → Privacy → Automation.
+Grant permissions in System Preferences → Security & Privacy → Privacy →
+Automation.
 
 ---
 
@@ -374,6 +400,7 @@ Grant permissions in System Preferences → Security & Privacy → Privacy → A
 **Cause:** Tag names match status field options in NocoDB.
 
 **Example:**
+
 - You have a tag "Important" in Things
 - Your NocoDB Status field has an option "Important"
 - prjsync thinks "Important" is a status tag
@@ -403,6 +430,7 @@ deno task start sync --no-status-sync
 **Cause:** Status option names are case-sensitive.
 
 **Example:**
+
 - NocoDB Status option: "In Progress"
 - Things tag: "in progress"
 - These don't match!
@@ -410,6 +438,7 @@ deno task start sync --no-status-sync
 **Solution:**
 
 Ensure exact case match between:
+
 1. NocoDB Status field options
 2. Things project tags
 
@@ -425,9 +454,11 @@ Update one or both to match exactly.
 
 **Cause 1: Large number of NocoDB records**
 
-Pagination fetches 100 records at a time. If you have thousands of records, this takes time.
+Pagination fetches 100 records at a time. If you have thousands of records, this
+takes time.
 
-**Solution:** No fix needed - this is expected. Consider archiving old records in NocoDB.
+**Solution:** No fix needed - this is expected. Consider archiving old records
+in NocoDB.
 
 **Cause 2: Network latency**
 
@@ -461,9 +492,11 @@ These modes generate significant output.
 
 **Symptom:** Errors about missing Deno permissions.
 
-**Cause:** Running prjsync with manual `deno run` command without required permissions.
+**Cause:** Running prjsync with manual `deno run` command without required
+permissions.
 
 **Required permissions:**
+
 - `--allow-net` - NocoDB API calls
 - `--allow-read` - Read configuration files
 - `--allow-write` - Write configuration and debug files
@@ -473,6 +506,7 @@ These modes generate significant output.
 **Solution:**
 
 Use the configured tasks:
+
 ```bash
 deno task start
 ```
@@ -480,6 +514,7 @@ deno task start
 These have all permissions pre-configured in `deno.json`.
 
 If running manually:
+
 ```bash
 deno run --allow-net --allow-read --allow-write --allow-run --allow-env src/cli/index.ts
 ```
@@ -511,6 +546,7 @@ deno task start sync --debug
 ```
 
 Debug mode shows:
+
 - All NocoDB API queries
 - Full API responses
 - Project matching process
@@ -528,11 +564,13 @@ deno task start sync --debug --uuid <project-uuid>
 ### Debug Output Files
 
 Debug mode saves NocoDB API responses to:
+
 ```
 .prjsync-debug/nocodb-records-{timestamp}.json
 ```
 
 These files contain:
+
 - All NocoDB records fetched
 - Full record data
 - Timestamps

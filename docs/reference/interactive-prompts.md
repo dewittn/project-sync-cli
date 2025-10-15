@@ -6,7 +6,8 @@ Complete reference for all interactive prompts in prjsync.
 
 ### When It Appears
 
-During sync, when a Things project has no matching NocoDB record (no UUID match and no title match).
+During sync, when a Things project has no matching NocoDB record (no UUID match
+and no title match).
 
 ### Prompt Display
 
@@ -26,20 +27,21 @@ Options: [c]Create new / [f]Find & select / [s]Skip all / [d]Debug / [n]Skip thi
 
 ### Response Options
 
-| Input | Action | Description |
-|-------|--------|-------------|
-| `c` | Create | Create a new NocoDB record with this project's data |
-| `f` | Find & Select | Search existing records with fuzzy matching to manually link |
-| `s` | Skip All | Stop syncing and skip all remaining projects |
-| `d` | Debug | Show detailed debug information, then re-prompt |
-| `n` | Skip This | Skip only this project, continue with next (default) |
-| `<Enter>` | Skip This | Same as `n` (default action) |
+| Input     | Action        | Description                                                  |
+| --------- | ------------- | ------------------------------------------------------------ |
+| `c`       | Create        | Create a new NocoDB record with this project's data          |
+| `f`       | Find & Select | Search existing records with fuzzy matching to manually link |
+| `s`       | Skip All      | Stop syncing and skip all remaining projects                 |
+| `d`       | Debug         | Show detailed debug information, then re-prompt              |
+| `n`       | Skip This     | Skip only this project, continue with next (default)         |
+| `<Enter>` | Skip This     | Same as `n` (default action)                                 |
 
 ### Detailed Option Behavior
 
 #### `c` - Create New Record
 
 **What happens:**
+
 1. New record created in NocoDB
 2. All mapped fields populated from Things project
 3. UUID stored in NocoDB for future matching
@@ -47,10 +49,12 @@ Options: [c]Create new / [f]Find & select / [s]Skip all / [d]Debug / [n]Skip thi
 5. Sync continues with next project
 
 **When to use:**
+
 - This is genuinely a new project not in NocoDB
 - You want to create a record automatically
 
 **Example output:**
+
 ```
 Creating new NocoDB record...
 ✓ Created record (ID: 123)
@@ -59,6 +63,7 @@ Creating new NocoDB record...
 #### `f` - Find & Select
 
 **What happens:**
+
 1. Fuzzy search interface opens
 2. All NocoDB records loaded
 3. Type to filter records in real-time
@@ -69,11 +74,13 @@ Creating new NocoDB record...
 8. Sync continues with next project
 
 **When to use:**
+
 - Record exists but title doesn't match exactly
 - Project was renamed in Things
 - You want to manually link to an existing record
 
 **Example:**
+
 ```
 Search records (type to filter):
 > web
@@ -89,17 +96,20 @@ Use ↑↓ to navigate, Enter to select, Esc to cancel
 #### `s` - Skip All
 
 **What happens:**
+
 1. Current project is skipped
 2. All remaining projects are skipped
 3. Sync ends immediately
 4. Summary shown with counts
 
 **When to use:**
+
 - You realize field mappings need adjustment
 - Too many unmatched projects
 - You want to stop and review configuration
 
 **Example output:**
+
 ```
 Skipping all remaining projects...
 Sync stopped.
@@ -110,6 +120,7 @@ Results: 5 projects synced, 10 skipped
 #### `d` - Debug
 
 **What happens:**
+
 1. Detailed debug information displayed
 2. Shows NocoDB search details
 3. Shows which fields were checked
@@ -117,11 +128,13 @@ Results: 5 projects synced, 10 skipped
 5. Re-prompts with same options
 
 **When to use:**
+
 - You expected a match but didn't get one
 - Investigating why matching isn't working
 - Understanding the search process
 
 **Example output:**
+
 ```
 Debug Information:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -152,16 +165,19 @@ Options: [c]Create new / [f]Find & select / [s]Skip all / [d]Debug / [n]Skip thi
 #### `n` - Skip This (Default)
 
 **What happens:**
+
 1. Current project is skipped
 2. Sync continues with next project
 3. Skipped project not synced
 
 **When to use:**
+
 - You'll handle this project manually later
 - Project shouldn't be synced
 - Want to skip temporarily and continue
 
 **Example output:**
+
 ```
 Skipping project...
 ```
@@ -197,17 +213,18 @@ All Records (42):
 
 ### Controls
 
-| Key | Action |
-|-----|--------|
-| Type | Filter records by search text |
-| `↑` / `↓` | Navigate through filtered results |
-| `Enter` | Select highlighted record and link to project |
-| `Esc` | Cancel and return to previous prompt |
-| `Backspace` | Delete last character from search |
+| Key         | Action                                        |
+| ----------- | --------------------------------------------- |
+| Type        | Filter records by search text                 |
+| `↑` / `↓`   | Navigate through filtered results             |
+| `Enter`     | Select highlighted record and link to project |
+| `Esc`       | Cancel and return to previous prompt          |
+| `Backspace` | Delete last character from search             |
 
 ### Search Behavior
 
 **Fuzzy Matching:**
+
 - Searches across record title and ID
 - Case-insensitive
 - Matches anywhere in the text
@@ -216,11 +233,13 @@ All Records (42):
 **Examples:**
 
 Search: `web`
+
 - Matches: "Launch **Web**site"
 - Matches: "**Web** Application"
 - Matches: "Corporate **Web**page"
 
 Search: `proj alpha`
+
 - Matches: "**Proj**ect **Alpha**"
 - Matches: "**Alpha** **Proj**ect"
 
@@ -237,6 +256,7 @@ Continuing with next project...
 ```
 
 The selected record is:
+
 1. Updated with all project data
 2. UUID field updated for future matching
 3. Status synced to Things (if configured)
@@ -259,11 +279,13 @@ Enter NocoDB URL (e.g., https://nocodb.example.com):
 ```
 
 **Expected format:**
+
 - Full URL including `https://` or `http://`
 - No trailing slash
 - No path components
 
 **Examples:**
+
 - ✓ `https://nocodb.example.com`
 - ✓ `https://app.nocodb.com`
 - ✓ `http://localhost:8080`
@@ -278,12 +300,14 @@ Enter NocoDB API Token:
 ```
 
 **Expected format:**
+
 - Long alphanumeric string
 - Usually starts with `xc-token-`
 
 **Input is hidden:** Characters not displayed for security.
 
 **How to get token:**
+
 1. Log into NocoDB
 2. Profile → Account Settings → Tokens
 3. Create Token
@@ -297,10 +321,12 @@ Enter Table ID (e.g., t_abcdefgh):
 ```
 
 **Expected format:**
+
 - Usually starts with `t_`
 - Followed by alphanumeric characters
 
 **How to find:**
+
 - Check NocoDB URL when viewing table
 - Example URL: `https://nocodb.example.com/nc/p01234567/t_abcdefgh`
 - Table ID: `t_abcdefgh`
@@ -346,6 +372,7 @@ Choose an option (1-4):
 **Prompts:**
 
 1. **Select NocoDB Field**
+
 ```
 Available NocoDB fields:
 1. Project Name
@@ -361,6 +388,7 @@ Select field to map (or type name):
 **Input:** Number (1-5) or exact field name
 
 2. **Select Things Property**
+
 ```
 Things properties:
 1. title (Project title/name)
@@ -376,6 +404,7 @@ Select property (1-5):
 **Input:** Number (1-5)
 
 **Confirmation:**
+
 ```
 ✓ Mapped: title → Project Name
 ```
@@ -383,6 +412,7 @@ Select property (1-5):
 #### Option 2: View Mappings
 
 **Display:**
+
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
                      FIELD MAPPING DIAGRAM
@@ -406,6 +436,7 @@ Press Enter to continue...
 #### Option 3: Auto-Map
 
 **Process:**
+
 ```
 Auto-detecting field mappings...
 
@@ -422,9 +453,11 @@ Press Enter to continue...
 ```
 
 **Logic:**
+
 - Matches common field name patterns
 - Case-insensitive matching
-- Looks for keywords like "title", "name", "uuid", "id", "notes", "description", etc.
+- Looks for keywords like "title", "name", "uuid", "id", "notes", "description",
+  etc.
 
 #### Option 4: Exit
 
@@ -459,12 +492,13 @@ Continue to next project? [y/n]:
 
 ### Response Options
 
-| Input | Action |
-|-------|--------|
-| `y` or `<Enter>` | Continue to next project |
-| `n` | Stop sync, exit debug mode |
+| Input            | Action                     |
+| ---------------- | -------------------------- |
+| `y` or `<Enter>` | Continue to next project   |
+| `n`              | Stop sync, exit debug mode |
 
-**Note:** This prompt appears after every project in debug mode, allowing you to step through projects one at a time.
+**Note:** This prompt appears after every project in debug mode, allowing you to
+step through projects one at a time.
 
 ---
 

@@ -34,20 +34,23 @@ Abstractions for external system APIs.
 **Purpose:** NocoDB REST API client
 
 **Exports:**
+
 - `NocoDBClient` class
 
 **Key Methods:**
+
 ```typescript
 class NocoDBClient {
-  getRecords(): Promise<Record[]>
-  createRecord(data: object): Promise<Record>
-  updateRecord(id: number, data: object): Promise<Record>
-  getFieldOptions(fieldName: string): Promise<string[]>
-  searchRecords(filters: object): Promise<Record[]>
+  getRecords(): Promise<Record[]>;
+  createRecord(data: object): Promise<Record>;
+  updateRecord(id: number, data: object): Promise<Record>;
+  getFieldOptions(fieldName: string): Promise<string[]>;
+  searchRecords(filters: object): Promise<Record[]>;
 }
 ```
 
 **Responsibilities:**
+
 - HTTP requests to NocoDB API
 - Authentication (xc-token header)
 - Pagination handling
@@ -55,6 +58,7 @@ class NocoDBClient {
 - Response validation
 
 **Dependencies:**
+
 - Deno's built-in `fetch()`
 - Configuration for URL, token, table ID
 
@@ -63,25 +67,29 @@ class NocoDBClient {
 **Purpose:** Things 3 integration via AppleScript
 
 **Exports:**
+
 - `ThingsClient` class
 
 **Key Methods:**
+
 ```typescript
 class ThingsClient {
-  listProjects(): Promise<Project[]>
-  getProjectTags(uuid: string): Promise<string[]>
-  addTag(uuid: string, tag: string): Promise<void>
-  removeTag(uuid: string, tag: string): Promise<void>
+  listProjects(): Promise<Project[]>;
+  getProjectTags(uuid: string): Promise<string[]>;
+  addTag(uuid: string, tag: string): Promise<void>;
+  removeTag(uuid: string, tag: string): Promise<void>;
 }
 ```
 
 **Responsibilities:**
+
 - Execute AppleScript commands via `osascript`
 - Parse AppleScript text output
 - Filter completed/recurring projects
 - Tag management operations
 
 **Challenges:**
+
 - AppleScript output is unstructured text
 - Requires complex parsing
 - Limited error information
@@ -96,27 +104,30 @@ Command-line interface and user interaction.
 **Purpose:** CLI entry point and command routing
 
 **Exports:**
+
 - `main()` function (entry point)
 
 **Responsibilities:**
+
 - Parse command-line arguments
 - Route to command handlers
 - Global error handling
 - Help message display
 
 **Structure:**
+
 ```typescript
 async function main() {
-  const args = parseArgs(Deno.args)
+  const args = parseArgs(Deno.args);
 
   switch (command) {
-    case 'sync':
-      await syncCommand(args)
-      break
-    case 'map':
-      await mapCommand(args)
-      break
-    // ... other commands
+    case "sync":
+      await syncCommand(args);
+      break;
+    case "map":
+      await mapCommand(args);
+      break;
+      // ... other commands
   }
 }
 ```
@@ -126,6 +137,7 @@ async function main() {
 Individual command implementations.
 
 **Files:**
+
 - `sync.ts` - Project synchronization
 - `map.ts` - Field mapping configuration
 - `config.ts` - Configuration management
@@ -134,6 +146,7 @@ Individual command implementations.
 - `test.ts` - Test connections
 
 **Pattern:** Each command exports an async function:
+
 ```typescript
 export async function syncCommand(options: SyncOptions): Promise<void> {
   // Command implementation
@@ -149,38 +162,42 @@ Configuration management and persistence.
 **Purpose:** Configuration CRUD operations
 
 **Exports:**
+
 - `ConfigManager` class
 
 **Key Methods:**
+
 ```typescript
 class ConfigManager {
-  load(): Promise<Config>
-  save(config: Config): Promise<void>
-  reset(): Promise<void>
-  getFieldMapping(property: string): string | null
-  addFieldMapping(nocodbField: string, thingsProperty: string): Promise<void>
+  load(): Promise<Config>;
+  save(config: Config): Promise<void>;
+  reset(): Promise<void>;
+  getFieldMapping(property: string): string | null;
+  addFieldMapping(nocodbField: string, thingsProperty: string): Promise<void>;
 }
 ```
 
 **Responsibilities:**
+
 - Read/write `~/.prjsync/config.json`
 - Encrypt/decrypt API tokens
 - Manage field mappings
 - Track sync statistics
 
 **Configuration Structure:**
+
 ```typescript
 interface Config {
-  nocodbUrl: string
-  nocodbToken: string  // encrypted
-  tableId: string
-  fieldMappings: FieldMapping[]
-  syncStats?: SyncStats
+  nocodbUrl: string;
+  nocodbToken: string; // encrypted
+  tableId: string;
+  fieldMappings: FieldMapping[];
+  syncStats?: SyncStats;
 }
 
 interface FieldMapping {
-  nocodbField: string
-  thingsProperty: string
+  nocodbField: string;
+  thingsProperty: string;
 }
 ```
 
@@ -193,9 +210,11 @@ Shared utilities and helpers.
 **Purpose:** Sync state and statistics tracking
 
 **Exports:**
+
 - `SyncState` class
 
 **Responsibilities:**
+
 - Track projects synced in current session
 - Count creates/updates/errors
 - Generate summary reports
@@ -207,6 +226,7 @@ Shared utilities and helpers.
 **Purpose:** Deno project configuration
 
 **Contents:**
+
 - `tasks` - Command shortcuts
 - `imports` - Dependency mappings
 - `compilerOptions` - TypeScript settings
@@ -214,6 +234,7 @@ Shared utilities and helpers.
 - `lint` - Linter rules
 
 **Key Tasks:**
+
 ```json
 {
   "tasks": {
@@ -227,6 +248,7 @@ Shared utilities and helpers.
 ```
 
 **Permissions:**
+
 - `--allow-net` - NocoDB API access
 - `--allow-read` - Read config files
 - `--allow-write` - Write config/debug files
@@ -244,6 +266,7 @@ Shared utilities and helpers.
 **Purpose:** Debug output directory
 
 **Contents:**
+
 - `nocodb-records-{timestamp}.json` - NocoDB API responses
 
 **Created by:** `--debug` mode
@@ -257,6 +280,7 @@ Organized using the [Diátaxis framework](https://diataxis.fr/).
 **Purpose:** Learning-oriented guides for beginners
 
 **Files:**
+
 - `getting-started.md` - First-time setup and sync
 - `field-mapping.md` - Field mapping walkthrough
 
@@ -265,6 +289,7 @@ Organized using the [Diátaxis framework](https://diataxis.fr/).
 **Purpose:** Task-oriented guides for specific goals
 
 **Files:**
+
 - `sync-projects.md` - Different sync scenarios
 - `status-sync.md` - Status tag synchronization
 - `troubleshooting.md` - Common issues and solutions
@@ -274,6 +299,7 @@ Organized using the [Diátaxis framework](https://diataxis.fr/).
 **Purpose:** Information-oriented technical details
 
 **Files:**
+
 - `commands.md` - Complete command reference
 - `configuration.md` - Config file structure
 - `interactive-prompts.md` - All prompts explained
@@ -284,6 +310,7 @@ Organized using the [Diátaxis framework](https://diataxis.fr/).
 **Purpose:** Understanding-oriented conceptual docs
 
 **Files:**
+
 - `architecture.md` - System design (this file)
 - `project-structure.md` - Codebase organization
 - `sync-strategy.md` - Sync logic deep dive
@@ -293,6 +320,7 @@ Organized using the [Diátaxis framework](https://diataxis.fr/).
 **Purpose:** Development guide for contributors
 
 **Contents:**
+
 - Development setup
 - Running tests
 - Code quality tools
@@ -305,6 +333,7 @@ Organized using the [Diátaxis framework](https://diataxis.fr/).
 **Purpose:** Project overview and quick start
 
 **Sections:**
+
 - Overview and features
 - Quick start instructions
 - Links to detailed documentation
@@ -315,12 +344,14 @@ Organized using the [Diátaxis framework](https://diataxis.fr/).
 **Purpose:** Guidance for Claude Code (AI assistant)
 
 **Contents:**
+
 - Project overview for AI
 - Common commands
 - Architecture notes
 - Key technical details
 
-**Usage:** Helps AI assistants understand the project context when providing development help.
+**Usage:** Helps AI assistants understand the project context when providing
+development help.
 
 ## File Naming Conventions
 
@@ -329,6 +360,7 @@ Organized using the [Diátaxis framework](https://diataxis.fr/).
 **Pattern:** `kebab-case.ts`
 
 **Examples:**
+
 - `nocodb.ts` - Single word, lowercase
 - `field-mapping.ts` - Multiple words, hyphenated
 - `list-projects.ts` - Command name matches CLI
@@ -338,6 +370,7 @@ Organized using the [Diátaxis framework](https://diataxis.fr/).
 **Pattern:** `kebab-case.md`
 
 **Examples:**
+
 - `getting-started.md` - Tutorial
 - `sync-projects.md` - How-to guide
 - `commands.md` - Reference
@@ -345,6 +378,7 @@ Organized using the [Diátaxis framework](https://diataxis.fr/).
 ### Configuration Files
 
 **Standard names:**
+
 - `deno.json` - Deno configuration
 - `deno.lock` - Dependency lock
 - `README.md` - Project readme
@@ -367,22 +401,26 @@ Organized using the [Diátaxis framework](https://diataxis.fr/).
 ### Import Patterns
 
 **API Clients:**
+
 ```typescript
 import { NocoDBClient } from "../api/nocodb.ts";
 import { ThingsClient } from "../api/things.ts";
 ```
 
 **Configuration:**
+
 ```typescript
 import { ConfigManager } from "../config/manager.ts";
 ```
 
 **Utilities:**
+
 ```typescript
 import { SyncState } from "../utils/state.ts";
 ```
 
 **Standard Library:**
+
 ```typescript
 import { parseArgs } from "@std/cli/parse-args";
 import { colors } from "@std/fmt/colors";
@@ -393,6 +431,7 @@ import { colors } from "@std/fmt/colors";
 ### 1. Separation of Concerns
 
 Each module has a single, clear responsibility:
+
 - API clients only handle external APIs
 - CLI only handles user interaction
 - Config only handles configuration
@@ -408,6 +447,7 @@ Utilities
 ```
 
 **Rules:**
+
 - CLI depends on Config and API
 - API never depends on CLI
 - Config is independent
@@ -419,14 +459,14 @@ Utilities
 
 ```typescript
 // API layer - throw descriptive errors
-throw new Error(`NocoDB API error: ${response.statusText}`)
+throw new Error(`NocoDB API error: ${response.statusText}`);
 
 // CLI layer - catch and display
 try {
-  await syncProjects()
+  await syncProjects();
 } catch (error) {
-  console.error(colors.red(`❌ ${error.message}`))
-  Deno.exit(1)
+  console.error(colors.red(`❌ ${error.message}`));
+  Deno.exit(1);
 }
 ```
 
@@ -437,16 +477,16 @@ try {
 ```typescript
 // In nocodb.ts
 export interface NocoDBRecord {
-  Id: number
-  [key: string]: unknown
+  Id: number;
+  [key: string]: unknown;
 }
 
 // In things.ts
 export interface ThingsProject {
-  title: string
-  uuid: string
-  notes: string
-  area?: string
+  title: string;
+  uuid: string;
+  notes: string;
+  area?: string;
 }
 ```
 
@@ -455,12 +495,12 @@ export interface ThingsProject {
 **Pattern:** Pass configuration to constructors
 
 ```typescript
-const config = await ConfigManager.load()
+const config = await ConfigManager.load();
 const nocodb = new NocoDBClient(
   config.nocodbUrl,
   config.nocodbToken,
-  config.tableId
-)
+  config.tableId,
+);
 ```
 
 **Benefit:** Easy testing with mock configuration
@@ -472,6 +512,7 @@ const nocodb = new NocoDBClient(
 **Pattern:** `{module}_test.ts`
 
 **Examples:**
+
 - `nocodb_test.ts`
 - `things_test.ts`
 - `config_test.ts`
@@ -520,6 +561,7 @@ deno task compile
 ```
 
 Creates standalone executable:
+
 - `dist/prjsync` (macOS/Linux)
 - `dist/prjsync.exe` (Windows)
 

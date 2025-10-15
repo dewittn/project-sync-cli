@@ -14,8 +14,8 @@ If no command is specified, `sync` is executed by default.
 
 These options can be used with any command:
 
-| Option | Description |
-|--------|-------------|
+| Option       | Description                       |
+| ------------ | --------------------------------- |
 | `-h, --help` | Show help message for the command |
 
 ---
@@ -33,29 +33,32 @@ deno task start [options]  # sync is default
 
 ### Options
 
-| Option | Type | Description |
-|--------|------|-------------|
-| `-v, --verbose` | Flag | Show detailed sync information for each project |
-| `--dry-run` | Flag | Preview changes without applying them |
-| `--debug` | Flag | Step-by-step sync with full API details |
-| `--verify` | Flag | Verify data accuracy after syncing each record |
-| `--uuid <uuid>` | String | Sync only one specific project by UUID |
-| `--no-status-sync` | Flag | Disable bidirectional status tag synchronization |
-| `-h, --help` | Flag | Show help message |
+| Option             | Type   | Description                                      |
+| ------------------ | ------ | ------------------------------------------------ |
+| `-v, --verbose`    | Flag   | Show detailed sync information for each project  |
+| `--dry-run`        | Flag   | Preview changes without applying them            |
+| `--debug`          | Flag   | Step-by-step sync with full API details          |
+| `--verify`         | Flag   | Verify data accuracy after syncing each record   |
+| `--uuid <uuid>`    | String | Sync only one specific project by UUID           |
+| `--no-status-sync` | Flag   | Disable bidirectional status tag synchronization |
+| `-h, --help`       | Flag   | Show help message                                |
 
 ### Behavior
 
 **Projects Included:**
+
 - Active projects from Things 3
 - Projects in any area
 - Projects with or without notes
 
 **Projects Excluded:**
+
 - Completed projects
 - Canceled projects (when status field is configured)
 - Recurring projects (these are templates)
 
 **Sync Process:**
+
 1. Fetch all NocoDB records (with pagination)
 2. Fetch all Things projects
 3. For each project:
@@ -67,6 +70,7 @@ deno task start [options]  # sync is default
 **Interactive Prompts:**
 
 When no matching record is found, you'll be prompted:
+
 - `c` - Create new record
 - `f` - Find and select existing record (fuzzy search)
 - `s` - Skip all remaining projects
@@ -103,12 +107,12 @@ deno task start sync --verbose --verify --dry-run
 
 ### Exit Codes
 
-| Code | Meaning |
-|------|---------|
-| 0 | Success |
-| 1 | Configuration error |
-| 2 | Connection error |
-| 3 | Sync error |
+| Code | Meaning             |
+| ---- | ------------------- |
+| 0    | Success             |
+| 1    | Configuration error |
+| 2    | Connection error    |
+| 3    | Sync error          |
 
 ---
 
@@ -124,18 +128,19 @@ deno task start map [options]
 
 ### Options
 
-| Option | Type | Description |
-|--------|------|-------------|
-| `--list` | Flag | Display visual field mapping diagram |
+| Option            | Type   | Description                                                     |
+| ----------------- | ------ | --------------------------------------------------------------- |
+| `--list`          | Flag   | Display visual field mapping diagram                            |
 | `--add <mapping>` | String | Add a specific mapping (format: "NocoDB Field:things_property") |
-| `--auto` | Flag | Auto-detect and create mappings for common field names |
-| `-h, --help` | Flag | Show help message |
+| `--auto`          | Flag   | Auto-detect and create mappings for common field names          |
+| `-h, --help`      | Flag   | Show help message                                               |
 
 ### Interactive Mode
 
 When run without options, `map` starts an interactive menu:
 
 **Menu Options:**
+
 1. **Add mapping** - Manually map a NocoDB field to a Things property
 2. **View mappings** - See a visual diagram of current mappings
 3. **Auto-map** - Automatically detect and create common mappings
@@ -143,13 +148,13 @@ When run without options, `map` starts an interactive menu:
 
 ### Things Properties
 
-| Property | Description | Example Value |
-|----------|-------------|---------------|
-| `title` | Project title/name | "Launch New Website" |
-| `id` | Project UUID (unique identifier) | "ABC123-DEF456" |
-| `notes` | Project notes/description | "Build and deploy..." |
-| `area` | Project area (optional) | "Work", "Personal" |
-| `status` | For bidirectional status sync | *(mapped to NocoDB Status field)* |
+| Property | Description                      | Example Value                     |
+| -------- | -------------------------------- | --------------------------------- |
+| `title`  | Project title/name               | "Launch New Website"              |
+| `id`     | Project UUID (unique identifier) | "ABC123-DEF456"                   |
+| `notes`  | Project notes/description        | "Build and deploy..."             |
+| `area`   | Project area (optional)          | "Work", "Personal"                |
+| `status` | For bidirectional status sync    | _(mapped to NocoDB Status field)_ |
 
 ### Mapping Syntax
 
@@ -220,12 +225,12 @@ deno task start config [options]
 
 ### Options
 
-| Option | Type | Description |
-|--------|------|-------------|
-| `--set` | Flag | Interactive configuration setup |
-| `--show` | Flag | Display current configuration (tokens hidden) |
-| `--reset` | Flag | Delete all configuration |
-| `-h, --help` | Flag | Show help message |
+| Option       | Type | Description                                   |
+| ------------ | ---- | --------------------------------------------- |
+| `--set`      | Flag | Interactive configuration setup               |
+| `--show`     | Flag | Display current configuration (tokens hidden) |
+| `--reset`    | Flag | Delete all configuration                      |
+| `-h, --help` | Flag | Show help message                             |
 
 ### Interactive Setup (`--set`)
 
@@ -248,6 +253,7 @@ Prompts for:
 Configuration is stored at: `~/.prjsync/config.json`
 
 **Structure:**
+
 ```json
 {
   "nocodbUrl": "https://nocodb.example.com",
@@ -298,13 +304,14 @@ deno task start list-projects
 
 ### Options
 
-| Option | Type | Description |
-|--------|------|-------------|
+| Option       | Type | Description       |
+| ------------ | ---- | ----------------- |
 | `-h, --help` | Flag | Show help message |
 
 ### Output
 
 Shows for each project:
+
 - Project title
 - UUID (for use with `--uuid` flag)
 - Area (if assigned)
@@ -350,20 +357,22 @@ deno task start status [options]
 
 ### Options
 
-| Option | Type | Description |
-|--------|------|-------------|
+| Option       | Type | Description                                       |
+| ------------ | ---- | ------------------------------------------------- |
 | `--detailed` | Flag | Include connection tests and detailed information |
-| `-h, --help` | Flag | Show help message |
+| `-h, --help` | Flag | Show help message                                 |
 
 ### Output
 
 **Basic status:**
+
 - Last sync timestamp
 - Total syncs performed
 - Projects synced in last sync
 - Configuration status
 
 **Detailed status (with `--detailed`):**
+
 - All of the above
 - NocoDB connection test result
 - Things connection test result
@@ -429,14 +438,15 @@ deno task start test [options]
 
 ### Options
 
-| Option | Type | Description |
-|--------|------|-------------|
-| `--nocodb` | Flag | Test only NocoDB connection |
-| `-h, --help` | Flag | Show help message |
+| Option       | Type | Description                 |
+| ------------ | ---- | --------------------------- |
+| `--nocodb`   | Flag | Test only NocoDB connection |
+| `-h, --help` | Flag | Show help message           |
 
 ### Tests Performed
 
 **Without `--nocodb` (default):**
+
 1. **NocoDB Connection Test**
    - Validates URL and token
    - Attempts to fetch table metadata
@@ -448,6 +458,7 @@ deno task start test [options]
    - Reports success or error details
 
 **With `--nocodb`:**
+
 - Only tests NocoDB connection
 - Useful for debugging NocoDB-specific issues
 
@@ -488,6 +499,7 @@ All tests passed ✓
 ### Troubleshooting
 
 If tests fail, see:
+
 - [Troubleshooting Guide](../how-to/troubleshooting.md)
 - Error messages for specific solutions
 
@@ -500,6 +512,7 @@ If tests fail, see:
 ```bash
 deno task start sync --dry-run --verbose
 ```
+
 Preview detailed sync without making changes.
 
 ### Targeted Debugging
@@ -507,6 +520,7 @@ Preview detailed sync without making changes.
 ```bash
 deno task start sync --uuid ABC123 --debug
 ```
+
 Debug one specific project with full details.
 
 ### Full Sync with Verification
@@ -514,6 +528,7 @@ Debug one specific project with full details.
 ```bash
 deno task start sync --verbose --verify
 ```
+
 Sync with details and verify results.
 
 ### Quick Single Project Update
@@ -521,6 +536,7 @@ Sync with details and verify results.
 ```bash
 deno task start sync --uuid ABC123 --no-status-sync
 ```
+
 Sync one project without modifying tags.
 
 ---

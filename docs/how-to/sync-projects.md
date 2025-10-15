@@ -19,6 +19,7 @@ deno task start sync
 ```
 
 This will:
+
 1. Fetch all active projects from Things 3
 2. Fetch all records from your NocoDB table
 3. Match projects to records (by UUID, then by title)
@@ -34,6 +35,7 @@ deno task start sync --dry-run
 ```
 
 This is useful when:
+
 - Testing new field mappings
 - Checking which projects will be created vs. updated
 - Ensuring no unwanted changes will occur
@@ -57,6 +59,7 @@ deno task start list-projects
 This lists all projects with their UUIDs.
 
 **When to use single project sync:**
+
 - Testing field mappings on one project first
 - Re-syncing a project after manual changes in Things
 - Debugging sync issues with a specific project
@@ -70,6 +73,7 @@ deno task start sync --no-status-sync
 ```
 
 **Use cases:**
+
 - You manage tags manually in Things
 - You're testing sync without affecting tags
 - Status field isn't properly configured yet
@@ -85,6 +89,7 @@ deno task start sync --verbose
 ```
 
 Verbose mode shows:
+
 - Things project data for each project
 - Which NocoDB record is being updated/created
 - All field mappings and their values
@@ -131,6 +136,7 @@ deno task start sync --debug
 ```
 
 Debug mode:
+
 - Pauses after each project for confirmation
 - Shows all API queries and responses
 - Displays the two-step search process (UUID → Title)
@@ -138,6 +144,7 @@ Debug mode:
 - Shows exactly which fields are being queried
 
 **Use debug mode when:**
+
 - Troubleshooting sync issues
 - Understanding how matching works
 - Investigating API errors
@@ -154,6 +161,7 @@ deno task start sync --verify
 ```
 
 After syncing, verification mode:
+
 1. Queries each synced record from NocoDB
 2. Compares actual values against expected values
 3. Checks that status tags match the NocoDB Status field
@@ -173,6 +181,7 @@ Verifying synced data...
 ```
 
 **When verification fails:**
+
 - Check your field mappings
 - Ensure NocoDB field types are correct
 - Use `--debug` to see what's being sent
@@ -219,11 +228,13 @@ See exactly what would be synced without making changes.
 ### What Gets Synced
 
 **Always synced:**
+
 - Active projects from Things 3
 - Projects in any area
 - Projects with or without notes
 
 **Never synced:**
+
 - Completed projects
 - Canceled projects (if status field is configured)
 - Recurring projects (these are templates, not actual projects)
@@ -233,14 +244,17 @@ See exactly what would be synced without making changes.
 prjsync uses a two-step process to match Things projects to NocoDB records:
 
 **Step 1: UUID Match**
+
 - Searches for a record with matching UUID in the configured UUID field
 - This is the most reliable matching method
 
 **Step 2: Title Fallback**
+
 - If no UUID match is found, searches by project title
 - If a match is found, the record is updated with the UUID
 
 **No Match Found**
+
 - You'll be prompted to create a new record, search manually, skip, or debug
 
 ### Create vs. Update
@@ -248,7 +262,8 @@ prjsync uses a two-step process to match Things projects to NocoDB records:
 - **Update**: When a matching record is found (by UUID or title)
 - **Create**: When no matching record exists and you choose to create one
 
-Updates only modify the mapped fields - other fields in NocoDB are left unchanged.
+Updates only modify the mapped fields - other fields in NocoDB are left
+unchanged.
 
 ## Performance Tips
 
@@ -284,6 +299,7 @@ Ensure the `id` (UUID) field is mapped correctly.
 ### Projects Not Syncing
 
 Check that:
+
 - Projects are active (not completed or canceled)
 - Projects are not recurring
 - Field mappings exist for the data you want to sync
@@ -297,6 +313,7 @@ See the dedicated [Status Tag Sync Guide](status-sync.md).
 ### API Errors
 
 If you get NocoDB API errors:
+
 - Check your API token is still valid
 - Verify the table ID is correct
 - Use `--debug` to see the full error response
@@ -308,5 +325,6 @@ If you get NocoDB API errors:
 
 - [Status Tag Sync](status-sync.md) - Bidirectional status synchronization
 - [Troubleshooting](troubleshooting.md) - Common issues and solutions
-- [Commands Reference](../reference/commands.md) - Complete command documentation
+- [Commands Reference](../reference/commands.md) - Complete command
+  documentation
 - [Operation Modes](../reference/modes.md) - Detailed mode documentation

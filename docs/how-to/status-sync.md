@@ -1,12 +1,15 @@
 # How to Use Status Tag Sync
 
-This guide shows you how to set up and use bidirectional status synchronization between NocoDB and Things 3.
+This guide shows you how to set up and use bidirectional status synchronization
+between NocoDB and Things 3.
 
 ## What is Status Tag Sync?
 
 Status tag sync keeps your project statuses in sync between NocoDB and Things:
+
 - NocoDB Status field values → Things project tags
-- When you update a Status in NocoDB, the corresponding tag is added/updated in Things
+- When you update a Status in NocoDB, the corresponding tag is added/updated in
+  Things
 - Old status tags are automatically removed and replaced with the current status
 
 ## Quick Setup
@@ -28,10 +31,12 @@ deno task start map
 ```
 
 Choose option `1` (Add mapping), then:
+
 1. Select your Status field
 2. Map it to the `status` property
 
 Example:
+
 ```
 Select field to map: Status
 Select property: status
@@ -65,17 +70,21 @@ For each project that's synced:
 ### Example
 
 **Before sync:**
+
 - NocoDB Status: `To Do`
 - Things tags: `Important`, `To Do`
 
 **After updating in NocoDB:**
+
 - NocoDB Status: `In Progress`
 
 **After sync:**
+
 - NocoDB Status: `In Progress` (unchanged)
 - Things tags: `Important`, `In Progress`
 
 Notice:
+
 - `To Do` tag was removed
 - `In Progress` tag was added
 - `Important` tag was preserved (it's not a status tag)
@@ -84,7 +93,8 @@ Notice:
 
 ### Workflow 1: Update Status in NocoDB
 
-1. Change a project's Status field in NocoDB (e.g., from "To Do" to "In Progress")
+1. Change a project's Status field in NocoDB (e.g., from "To Do" to "In
+   Progress")
 2. Run `deno task start sync`
 3. Check Things - the project now has an "In Progress" tag
 
@@ -111,15 +121,18 @@ Notice:
 
 ### Status Tags
 
-Status tags are tags that match any of the Single Select options in your NocoDB Status field.
+Status tags are tags that match any of the Single Select options in your NocoDB
+Status field.
 
 If your Status field has options:
+
 - To Do
 - In Progress
 - Review
 - Done
 
 Then these are considered status tags when they appear in Things:
+
 - ✓ To Do
 - ✓ In Progress
 - ✓ Review
@@ -128,6 +141,7 @@ Then these are considered status tags when they appear in Things:
 ### Non-Status Tags
 
 Any other tags are preserved and never modified:
+
 - Important
 - Urgent
 - Personal
@@ -239,7 +253,8 @@ In NocoDB, check that your Status field is a Single Select with defined options.
 
 **Cause:** Your non-status tags match status field options.
 
-**Solution:** Rename tags in Things or status options in NocoDB to avoid conflicts.
+**Solution:** Rename tags in Things or status options in NocoDB to avoid
+conflicts.
 
 ### Tags Not Updating
 
@@ -252,6 +267,7 @@ deno task start sync --verbose --uuid <project-uuid>
 Look for the "Status Tag Sync" section to see what's happening.
 
 **Common causes:**
+
 - Status field not mapped
 - Status field is empty in NocoDB
 - Project is completed or canceled
@@ -260,6 +276,7 @@ Look for the "Status Tag Sync" section to see what's happening.
 ### Status Field Not Reading Correctly
 
 **Check the field type in NocoDB:**
+
 - Must be a Single Select field
 - Not Multi Select, Text, or any other type
 
@@ -274,10 +291,12 @@ deno task start sync --debug --uuid <project-uuid>
 ### Case Sensitivity Issues
 
 Status field options are case-sensitive:
+
 - "In Progress" ≠ "in progress"
 - "To Do" ≠ "to do"
 
 Make sure:
+
 - NocoDB option: `In Progress`
 - Things tag: `In Progress`
 - Both must match exactly (including capitalization and spaces)
@@ -287,30 +306,35 @@ Make sure:
 ### 1. Use Standard Status Names
 
 Choose clear, consistent status names:
+
 - ✓ To Do, In Progress, Review, Done
 - ✗ ToDo, InProgress, review, DONE
 
 ### 2. Keep Status Options Short
 
 Short status names work better as tags:
+
 - ✓ In Progress
 - ✗ Currently Being Worked On By The Team
 
 ### 3. Limit Status Options
 
 Too many status options create tag clutter:
+
 - ✓ 4-6 status options
 - ✗ 15+ status options
 
 ### 4. Don't Manually Edit Status Tags
 
-Let prjsync manage status tags automatically. Manually adding/removing status tags in Things will be overwritten on the next sync.
+Let prjsync manage status tags automatically. Manually adding/removing status
+tags in Things will be overwritten on the next sync.
 
 Non-status tags can be edited freely.
 
 ### 5. Sync Regularly
 
 Run syncs regularly to keep status tags up to date:
+
 - After updating statuses in NocoDB
 - Before important reviews or meetings
 - Daily or weekly as part of your workflow
@@ -326,6 +350,8 @@ For a detailed explanation of how status tag sync works under the hood, see:
 ## Related Documentation
 
 - [Sync Projects](sync-projects.md) - General sync workflows
-- [Field Mapping Tutorial](../tutorials/field-mapping.md) - Setting up field mappings
-- [Sync Strategy Explanation](../explanation/sync-strategy.md) - How the sync process works
+- [Field Mapping Tutorial](../tutorials/field-mapping.md) - Setting up field
+  mappings
+- [Sync Strategy Explanation](../explanation/sync-strategy.md) - How the sync
+  process works
 - [Troubleshooting](troubleshooting.md) - Common issues

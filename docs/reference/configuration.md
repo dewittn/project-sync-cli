@@ -9,6 +9,7 @@ Complete reference for prjsync configuration file structure and options.
 ```
 
 This file is created automatically when you run:
+
 ```bash
 deno task start config --set
 ```
@@ -52,11 +53,13 @@ The URL of your NocoDB instance.
 **Type:** String (URL)
 
 **Format:**
+
 - Must start with `http://` or `https://`
 - No trailing slash
 - No path components (like `/api/v2`)
 
 **Valid Examples:**
+
 ```json
 "nocodbUrl": "https://nocodb.example.com"
 "nocodbUrl": "https://app.nocodb.com"
@@ -64,6 +67,7 @@ The URL of your NocoDB instance.
 ```
 
 **Invalid Examples:**
+
 ```json
 "nocodbUrl": "https://nocodb.example.com/"      // trailing slash
 "nocodbUrl": "https://nocodb.example.com/api"   // path included
@@ -79,6 +83,7 @@ Your NocoDB API authentication token.
 **Type:** String
 
 **How to Generate:**
+
 1. Log into NocoDB
 2. Click your profile icon
 3. Go to "Account Settings"
@@ -87,20 +92,24 @@ Your NocoDB API authentication token.
 6. Copy the generated token
 
 **Security:**
+
 - Stored with basic encryption in config file
 - Never shared or logged
 - Masked in `config --show` output
 
 **Token Format:**
+
 - Usually starts with `xc-token-`
 - Long alphanumeric string
 
 **Example:**
+
 ```json
 "nocodbToken": "xc-token-abc123def456ghi789jkl012mno345"
 ```
 
 **Permissions Required:**
+
 - Read access to the target table
 - Write access to create/update records
 - Access to table metadata (field information)
@@ -120,6 +129,7 @@ The unique identifier of the NocoDB table to sync projects to.
 **Method 1: From NocoDB URL**
 
 When viewing your table in NocoDB, check the URL:
+
 ```
 https://nocodb.example.com/nc/p01234567/t_abcdefgh
                                          ^^^^^^^^^^^
@@ -131,6 +141,7 @@ https://nocodb.example.com/nc/p01234567/t_abcdefgh
 Use the NocoDB API explorer to list tables and find the ID.
 
 **Example:**
+
 ```json
 "tableId": "t_abcdefgh"
 ```
@@ -144,6 +155,7 @@ Array of mappings between Things properties and NocoDB fields.
 **Type:** Array of objects
 
 **Structure:**
+
 ```json
 "fieldMappings": [
   {
@@ -155,20 +167,20 @@ Array of mappings between Things properties and NocoDB fields.
 
 #### Field Mapping Object
 
-| Property | Type | Description | Required |
-|----------|------|-------------|----------|
-| `nocodbField` | String | Exact NocoDB field name (case-sensitive) | Yes |
-| `thingsProperty` | String | Things property identifier | Yes |
+| Property         | Type   | Description                              | Required |
+| ---------------- | ------ | ---------------------------------------- | -------- |
+| `nocodbField`    | String | Exact NocoDB field name (case-sensitive) | Yes      |
+| `thingsProperty` | String | Things property identifier               | Yes      |
 
 #### Valid Things Properties
 
-| Property | Description | Maps To |
-|----------|-------------|---------|
-| `title` | Project title/name | Single Line Text field |
-| `id` | Project UUID | Single Line Text field |
-| `notes` | Project description/notes | Long Text field |
-| `area` | Project area | Single Line Text field |
-| `status` | Status for bidirectional sync | Single Select field |
+| Property | Description                   | Maps To                |
+| -------- | ----------------------------- | ---------------------- |
+| `title`  | Project title/name            | Single Line Text field |
+| `id`     | Project UUID                  | Single Line Text field |
+| `notes`  | Project description/notes     | Long Text field        |
+| `area`   | Project area                  | Single Line Text field |
+| `status` | Status for bidirectional sync | Single Select field    |
 
 #### Example Mappings
 
@@ -203,18 +215,22 @@ Array of mappings between Things properties and NocoDB fields.
 - **At minimum, map `title`**: Required for basic sync
 - **Strongly recommend mapping `id`**: For reliable project tracking
 - **Status mapping is optional**: Only needed for bidirectional status sync
-- **One field per property**: Each Things property can only map to one NocoDB field
-- **No duplicate mappings**: Each NocoDB field can only map to one Things property
+- **One field per property**: Each Things property can only map to one NocoDB
+  field
+- **No duplicate mappings**: Each NocoDB field can only map to one Things
+  property
 
 ---
 
 ### `syncStats` (Auto-Generated)
 
-Statistics and history of sync operations. This is automatically managed by prjsync.
+Statistics and history of sync operations. This is automatically managed by
+prjsync.
 
 **Type:** Object
 
 **Structure:**
+
 ```json
 "syncStats": {
   "lastSync": "2025-03-15T10:30:45.123Z",
@@ -230,22 +246,23 @@ Statistics and history of sync operations. This is automatically managed by prjs
 
 #### `syncStats` Fields
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `lastSync` | ISO 8601 DateTime | Timestamp of most recent sync |
-| `totalSyncs` | Number | Total number of syncs performed |
-| `lastSyncResults` | Object | Results of most recent sync |
+| Field             | Type              | Description                     |
+| ----------------- | ----------------- | ------------------------------- |
+| `lastSync`        | ISO 8601 DateTime | Timestamp of most recent sync   |
+| `totalSyncs`      | Number            | Total number of syncs performed |
+| `lastSyncResults` | Object            | Results of most recent sync     |
 
 #### `lastSyncResults` Fields
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `projectsSynced` | Number | Total projects synced |
-| `created` | Number | New records created |
-| `updated` | Number | Existing records updated |
-| `errors` | Number | Errors encountered |
+| Field            | Type   | Description              |
+| ---------------- | ------ | ------------------------ |
+| `projectsSynced` | Number | Total projects synced    |
+| `created`        | Number | New records created      |
+| `updated`        | Number | Existing records updated |
+| `errors`         | Number | Errors encountered       |
 
-**Note:** Do not manually edit `syncStats` - it's managed automatically by prjsync.
+**Note:** Do not manually edit `syncStats` - it's managed automatically by
+prjsync.
 
 ---
 
@@ -253,13 +270,13 @@ Statistics and history of sync operations. This is automatically managed by prjs
 
 When creating fields in NocoDB to sync with Things properties:
 
-| Things Property | Recommended NocoDB Field Type |
-|-----------------|-------------------------------|
-| `title` | Single Line Text |
-| `id` (UUID) | Single Line Text |
-| `notes` | Long Text |
-| `area` | Single Line Text |
-| `status` | Single Select (with predefined options) |
+| Things Property | Recommended NocoDB Field Type           |
+| --------------- | --------------------------------------- |
+| `title`         | Single Line Text                        |
+| `id` (UUID)     | Single Line Text                        |
+| `notes`         | Long Text                               |
+| `area`          | Single Line Text                        |
+| `status`        | Single Select (with predefined options) |
 
 ### Status Field Requirements
 
@@ -286,6 +303,7 @@ You can manually edit the configuration file if needed.
 ### Backup First
 
 Always backup before editing:
+
 ```bash
 cp ~/.prjsync/config.json ~/.prjsync/config.json.backup
 ```
@@ -302,6 +320,7 @@ code ~/.prjsync/config.json
 ### Validate After Editing
 
 Test the configuration:
+
 ```bash
 deno task start test
 ```
@@ -309,6 +328,7 @@ deno task start test
 ### Common Manual Edits
 
 **Add a field mapping:**
+
 ```json
 {
   "nocodbField": "New Field Name",
@@ -321,11 +341,13 @@ deno task start test
 Delete the entire object from the `fieldMappings` array.
 
 **Change NocoDB URL:**
+
 ```json
 "nocodbUrl": "https://new-nocodb-instance.com"
 ```
 
 **Update table ID:**
+
 ```json
 "tableId": "t_newTableId"
 ```
@@ -341,6 +363,7 @@ deno task start config --show
 ```
 
 Shows:
+
 - NocoDB URL
 - Table ID
 - Field mappings count
@@ -353,6 +376,7 @@ deno task start config --set
 ```
 
 Prompts for:
+
 - NocoDB URL
 - API token
 - Table ID
@@ -379,7 +403,8 @@ Deletes and recreates configuration.
 
 ## Multiple Environments
 
-prjsync currently supports only one configuration file. For multiple environments:
+prjsync currently supports only one configuration file. For multiple
+environments:
 
 ### Option 1: Manual Switching
 
@@ -408,15 +433,19 @@ Use different machines or user accounts for different environments.
 ### ⚠️ Important: Credential Storage
 
 **API tokens are stored in plain text** in the configuration file at:
+
 ```
 ~/.prjsync/config.json
 ```
 
-While the configuration file is created with user-only permissions, the NocoDB API token is **not encrypted** and is stored as plain text in this file. This means:
+While the configuration file is created with user-only permissions, the NocoDB
+API token is **not encrypted** and is stored as plain text in this file. This
+means:
 
 - Anyone with read access to this file can see your API token
 - If your home directory is backed up, the token is included in backups
-- If you share your computer, other users with sudo/admin access could potentially read this file
+- If you share your computer, other users with sudo/admin access could
+  potentially read this file
 
 ### Recommended Security Practices
 
@@ -431,6 +460,7 @@ chmod 600 ~/.prjsync/config.json
 This ensures only your user account can read/write the file.
 
 **Verify permissions:**
+
 ```bash
 ls -l ~/.prjsync/config.json
 # Should show: -rw------- (600)
@@ -455,11 +485,13 @@ chmod 700 ~/.prjsync
 #### 4. Backup Security
 
 If you backup your home directory:
+
 - Be aware that backups contain your API token
 - Encrypt backups or exclude `~/.prjsync/config.json`
 - Store backups securely
 
 Example to exclude from Time Machine:
+
 ```bash
 tmutil addexclusion ~/.prjsync
 ```
@@ -467,6 +499,7 @@ tmutil addexclusion ~/.prjsync
 #### 5. Shared Computer Considerations
 
 If you share your computer with others:
+
 - Remember that admin users can potentially read any file
 - Consider using a separate user account for prjsync
 - Revoke and regenerate tokens when switching users
@@ -512,6 +545,7 @@ For environments requiring enhanced security:
 ### Future Security Improvements
 
 The following security enhancements are planned for future releases:
+
 - Environment variable support for API tokens
 - Encrypted configuration file storage
 - Integration with system keychain (macOS Keychain)
@@ -525,6 +559,7 @@ The following security enhancements are planned for future releases:
 **Cause:** Config file doesn't exist.
 
 **Solution:**
+
 ```bash
 deno task start config --set
 ```
@@ -536,11 +571,13 @@ deno task start config --set
 **Solution:**
 
 1. Check JSON syntax:
+
 ```bash
 cat ~/.prjsync/config.json | jq .
 ```
 
 2. If corrupted, reset and reconfigure:
+
 ```bash
 deno task start config --reset
 deno task start config --set
@@ -553,16 +590,19 @@ deno task start config --set
 **Solution:**
 
 1. Verify file location:
+
 ```bash
 ls -la ~/.prjsync/config.json
 ```
 
 2. Check file contents:
+
 ```bash
 cat ~/.prjsync/config.json
 ```
 
 3. Test configuration:
+
 ```bash
 deno task start config --show
 ```

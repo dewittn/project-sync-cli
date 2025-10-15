@@ -1,10 +1,12 @@
 # Architecture
 
-This document explains how prjsync is designed and how its components work together.
+This document explains how prjsync is designed and how its components work
+together.
 
 ## System Overview
 
-prjsync is a command-line application that acts as a bridge between Things 3 (a macOS task management app) and NocoDB (a database platform with REST API).
+prjsync is a command-line application that acts as a bridge between Things 3 (a
+macOS task management app) and NocoDB (a database platform with REST API).
 
 ```
 ┌─────────────┐         ┌──────────────┐         ┌──────────────┐
@@ -23,6 +25,7 @@ prjsync is a command-line application that acts as a bridge between Things 3 (a 
 ```
 
 **Data Flow:**
+
 1. User runs `prjsync sync`
 2. prjsync reads configuration from `~/.prjsync/config.json`
 3. prjsync fetches projects from Things via AppleScript
@@ -63,6 +66,7 @@ prjsync follows a clean layered architecture with clear separation of concerns:
 ### CLI Layer (`src/cli/`)
 
 **Responsibilities:**
+
 - Parse command-line arguments
 - Route commands to appropriate handlers
 - Display output to user
@@ -70,10 +74,12 @@ prjsync follows a clean layered architecture with clear separation of concerns:
 - Format errors and success messages
 
 **Key Files:**
+
 - `cli/index.ts` - Entry point, command routing
 - `cli/commands/*.ts` - Individual command implementations
 
 **Design Decisions:**
+
 - Uses Deno's standard library for argument parsing (`@std/cli/parse-args`)
 - Cliffy library for interactive prompts (`@cliffy/prompt`)
 - Colorful output with `@std/fmt/colors`
@@ -82,20 +88,24 @@ prjsync follows a clean layered architecture with clear separation of concerns:
 ### Configuration Layer (`src/config/`)
 
 **Responsibilities:**
+
 - Load and save configuration
 - Manage field mappings
 - Track sync statistics
 - Encrypt/decrypt sensitive data
 
 **Key Files:**
+
 - `config/manager.ts` - Configuration CRUD operations
 
 **Storage:**
+
 - File: `~/.prjsync/config.json`
 - Format: JSON
 - Permissions: User-only read/write (600)
 
 **Design Decisions:**
+
 - Single configuration file for simplicity
 - API tokens stored with basic encryption
 - Field mappings stored as array of objects
@@ -104,6 +114,7 @@ prjsync follows a clean layered architecture with clear separation of concerns:
 ### API Layer (`src/api/`)
 
 **Responsibilities:**
+
 - Abstract external system APIs
 - Handle authentication
 - Manage API requests and responses
@@ -114,18 +125,21 @@ prjsync follows a clean layered architecture with clear separation of concerns:
 #### Things Client (`src/api/things.ts`)
 
 **Interface:**
+
 - `listProjects()` - Get all active projects
 - `getProjectTags(uuid)` - Get tags for a project
 - `addTag(uuid, tag)` - Add a tag to a project
 - `removeTag(uuid, tag)` - Remove a tag from a project
 
 **Implementation:**
+
 - Uses AppleScript via `osascript` command
 - Parses AppleScript output (complex text format)
 - Filters out completed and recurring projects
 - Handles Things-specific data structures
 
 **Challenges:**
+
 - No official Things API
 - AppleScript output is unstructured text
 - Requires Things to be running
@@ -134,6 +148,7 @@ prjsync follows a clean layered architecture with clear separation of concerns:
 #### NocoDB Client (`src/api/nocodb.ts`)
 
 **Interface:**
+
 - `getRecords()` - Fetch all records (with pagination)
 - `createRecord(data)` - Create new record
 - `updateRecord(id, data)` - Update existing record
@@ -141,12 +156,14 @@ prjsync follows a clean layered architecture with clear separation of concerns:
 - `searchRecords(filters)` - Search with conditions
 
 **Implementation:**
+
 - REST API using `fetch()`
 - Token-based authentication via `xc-token` header
 - Automatic pagination (100 records per request)
 - Comprehensive error handling with HTTP details
 
 **API Details:**
+
 - Base URL: `{nocodbUrl}/api/v2/tables/{tableId}/records`
 - Authentication: HTTP header `xc-token: {token}`
 - Pagination: Query params `limit` and `offset`
@@ -307,12 +324,14 @@ prjsync uses layered error handling:
 ### Layer 1: API Errors
 
 **NocoDB API Errors:**
+
 - Caught at API client level
 - HTTP status codes examined
 - Error messages extracted from response
 - Wrapped in descriptive error with context
 
 **Things AppleScript Errors:**
+
 - Exit codes checked
 - stderr output captured
 - Common errors (app not running) handled specifically
@@ -320,11 +339,13 @@ prjsync uses layered error handling:
 ### Layer 2: Business Logic Errors
 
 **Configuration Errors:**
+
 - Missing or invalid configuration
 - Friendly error messages
 - Guidance on how to fix
 
 **Mapping Errors:**
+
 - Missing required mappings
 - Field not found in NocoDB
 - Clear explanation of what's wrong
@@ -332,12 +353,14 @@ prjsync uses layered error handling:
 ### Layer 3: User-Facing Errors
 
 **Display:**
+
 - Colorful output (red for errors)
 - Clear error messages
 - Suggested actions
 - Exit with appropriate exit code
 
 **Example:**
+
 ```
 ❌ Error: NocoDB connection failed
 
@@ -362,11 +385,13 @@ Need help? See docs/how-to/troubleshooting.md
 **Challenge:** Large tables with thousands of records
 
 **Solution:**
+
 - Fetch records in batches of 100
 - Use offset-based pagination
 - Process all batches sequentially
 
 **Trade-off:**
+
 - More reliable than large single requests
 - Slower for very large tables
 - Simple implementation
@@ -376,11 +401,13 @@ Need help? See docs/how-to/troubleshooting.md
 **Challenge:** AppleScript is slow for large operations
 
 **Solution:**
+
 - Single batch operation to fetch all projects
 - Cache project data in memory
 - Minimize AppleScript calls
 
 **Trade-off:**
+
 - Fast for typical use (10-100 projects)
 - May be slow for users with 1000+ projects
 
@@ -389,11 +416,13 @@ Need help? See docs/how-to/troubleshooting.md
 **Current approach:** No persistent caching
 
 **Rationale:**
+
 - Sync is manual, not automatic
 - Data freshness is priority
 - Configuration is lightweight
 
-**Future consideration:** Cache NocoDB records between syncs for faster matching.
+**Future consideration:** Cache NocoDB records between syncs for faster
+matching.
 
 ## Extensibility
 
@@ -430,6 +459,7 @@ Architecture supports swapping Things client:
 ### Why Deno?
 
 **Advantages:**
+
 - TypeScript support out of the box
 - Modern standard library
 - Secure by default (permissions)
@@ -437,6 +467,7 @@ Architecture supports swapping Things client:
 - No package.json complexity
 
 **Trade-offs:**
+
 - Smaller ecosystem than Node.js
 - Some libraries not Deno-compatible
 - Requires Deno runtime installation
@@ -448,6 +479,7 @@ Architecture supports swapping Things client:
 **Solution:** AppleScript is the only official automation method
 
 **Challenges:**
+
 - Parsing unstructured text output
 - Slow execution
 - Limited error reporting
@@ -457,12 +489,14 @@ Architecture supports swapping Things client:
 ### Why REST API for NocoDB?
 
 **Advantages:**
+
 - Official, documented API
 - Token-based auth (simple)
 - JSON responses (easy to parse)
 - Full CRUD support
 
 **Trade-offs:**
+
 - Requires network connectivity
 - Rate limiting considerations
 - No real-time updates

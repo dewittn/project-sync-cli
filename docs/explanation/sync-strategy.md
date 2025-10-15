@@ -1,6 +1,7 @@
 # Sync Strategy
 
-This document explains the design decisions and algorithms behind prjsync's synchronization logic.
+This document explains the design decisions and algorithms behind prjsync's
+synchronization logic.
 
 ## Sync Philosophy
 
@@ -25,9 +26,11 @@ notes                 →   Description
 area                  →   Category
 ```
 
-**Rationale:** Things is where projects are created and managed. NocoDB is a database view of those projects.
+**Rationale:** Things is where projects are created and managed. NocoDB is a
+database view of those projects.
 
 **Behavior:**
+
 - Things data always overwrites NocoDB data
 - NocoDB fields not mapped are left unchanged
 - Users can add extra fields in NocoDB (not synced from Things)
@@ -41,9 +44,11 @@ NocoDB Status Field   →   Things Tag
 "Done"                →   Add tag: Done
 ```
 
-**Rationale:** Status is often updated in a database view (NocoDB) and should reflect in the task manager (Things).
+**Rationale:** Status is often updated in a database view (NocoDB) and should
+reflect in the task manager (Things).
 
-**Limitation:** Only status field supports bidirectional sync. Other fields remain one-way.
+**Limitation:** Only status field supports bidirectional sync. Other fields
+remain one-way.
 
 ## Project Matching Algorithm
 
@@ -65,11 +70,13 @@ For each Things project:
 ```
 
 **Advantages:**
+
 - Reliable (UUIDs are unique)
 - Handles project renames
 - Fastest search method
 
 **Requirements:**
+
 - UUID field must be mapped in configuration
 - UUID field must contain Things UUID values
 
@@ -88,11 +95,13 @@ If Step 1 found no match:
 ```
 
 **Use Cases:**
+
 - First-time sync (no UUIDs in NocoDB yet)
 - Manually created NocoDB records
 - Migration from other systems
 
 **Limitations:**
+
 - Requires exact title match (case-sensitive)
 - Fails if project was renamed
 
@@ -101,9 +110,11 @@ If Step 1 found no match:
 **Design Decision:** Prioritize reliability over performance.
 
 **Alternative considered:** Title-only matching
+
 - **Rejected because:** Unreliable when projects are renamed
 
 **Alternative considered:** UUID-only matching
+
 - **Rejected because:** Breaks first-time sync and manual records
 
 **Chosen approach:** UUID first (reliable), title fallback (flexible)
@@ -131,16 +142,19 @@ For each Things project:
 **Only mapped fields are updated:**
 
 If field mappings are:
+
 - `title → Project Name`
 - `uuid → Things UUID`
 - `notes → Description`
 
 Then update only updates:
+
 - `Project Name`
 - `Things UUID`
 - `Description`
 
 **Other fields untouched:**
+
 - `Priority` (not mapped) → Unchanged
 - `Assigned To` (not mapped) → Unchanged
 - `Custom Field` (not mapped) → Unchanged
@@ -152,6 +166,7 @@ Then update only updates:
 **All mapped fields are set:**
 
 New record created with:
+
 - All mapped field values
 - Other fields set to defaults (empty or NocoDB defaults)
 
@@ -163,17 +178,20 @@ Ensures future syncs will match by UUID (Step 1), not title (Step 2).
 
 ### Overview
 
-Status tag sync is a bidirectional feature that syncs NocoDB Status field values back to Things as project tags.
+Status tag sync is a bidirectional feature that syncs NocoDB Status field values
+back to Things as project tags.
 
 ### Why Bidirectional Status?
 
 **User workflow:**
+
 1. Create projects in Things
 2. View/manage projects in NocoDB (database view)
 3. Update status in NocoDB (easier than Things tags)
 4. Want status reflected in Things automatically
 
-**Design decision:** Status is metadata that should be kept in sync between systems.
+**Design decision:** Status is metadata that should be kept in sync between
+systems.
 
 ### Algorithm
 
@@ -216,21 +234,25 @@ For each synced project:
 **Example:**
 
 NocoDB Status field (Single Select) has options:
+
 - To Do
 - In Progress
 - Review
 - Done
 
 Things project has tags:
+
 - Important
 - Urgent
 - To Do
 - Client Work
 
 **Status tags identified:**
+
 - To Do (matches status option)
 
 **Non-status tags preserved:**
+
 - Important
 - Urgent
 - Client Work
@@ -242,12 +264,14 @@ Things project has tags:
 **Scenario:** Project status changes from "To Do" → "In Progress" → "Review"
 
 **If we accumulated:**
+
 - After first sync: Tags = [To Do]
 - After second sync: Tags = [To Do, In Progress]
 - After third sync: Tags = [To Do, In Progress, Review]
 - **Problem:** All old statuses remain
 
 **By replacing:**
+
 - After first sync: Tags = [To Do]
 - After second sync: Tags = [In Progress]
 - After third sync: Tags = [Review]
@@ -258,6 +282,7 @@ Things project has tags:
 **Scenario:** NocoDB Status field is cleared (set to empty)
 
 **Behavior:**
+
 1. No new tag added
 2. All status tags removed
 3. Non-status tags preserved
@@ -272,10 +297,10 @@ Things project has tags:
 
 **Example:**
 
-NocoDB option: "In Progress"
-Things tag must be: "In Progress"
+NocoDB option: "In Progress" Things tag must be: "In Progress"
 
 **Not matched:**
+
 - "in progress" (lowercase)
 - "IN PROGRESS" (uppercase)
 - "In-Progress" (hyphenated)
@@ -291,6 +316,7 @@ Things tag must be: "In Progress"
 **Answer:** prjsync creates it automatically.
 
 **Behavior:**
+
 1. Attempt to add tag "In Progress"
 2. If tag doesn't exist, Things creates it
 3. Tag is added to project
@@ -308,6 +334,7 @@ Things tag must be: "In Progress"
 **Example:** `Completed: 2025-03-15`
 
 **Rationale:**
+
 - Completed projects shouldn't have tags modified
 - "Completed" is a special state
 - Date indicates when completed
@@ -319,6 +346,7 @@ Things tag must be: "In Progress"
 **Condition:** Status field = "Canceled"
 
 **Rationale:**
+
 - Canceled projects are archived
 - Shouldn't be modified
 
@@ -329,6 +357,7 @@ Things tag must be: "In Progress"
 **API Calls per Project:**
 
 For each synced project with status mapping:
+
 1. Read NocoDB record (already fetched during match)
 2. Get status field options (cached per sync)
 3. Get Things project tags (1 AppleScript call)
@@ -336,10 +365,12 @@ For each synced project with status mapping:
 5. Add new tag (1 AppleScript call)
 
 **Optimization:**
+
 - Status options fetched once per sync, cached
 - Only AppleScript calls for tag operations
 
 **Trade-off:**
+
 - More API calls per project
 - Slower sync overall
 - Can be disabled with `--no-status-sync`
@@ -349,16 +380,19 @@ For each synced project with status mapping:
 **What if status tag sync fails?**
 
 **Behavior:**
+
 1. Error is logged
 2. Project data sync still succeeds
 3. Sync continues with next project
 
 **Rationale:**
+
 - Status tags are supplementary feature
 - Project data sync is primary goal
 - Don't fail entire sync for tag issues
 
 **Example error:**
+
 ```
 ✓ Project data synced
 ⚠️  Status tag sync failed: Unable to add tag "In Progress"
@@ -381,27 +415,33 @@ Continue until fewer than 100 records returned
 ```
 
 **Parameters:**
+
 - `limit=100` - Records per request
 - `offset=N` - Skip first N records
 
 **Why 100?**
+
 - Reliable (NocoDB handles well)
 - Fast enough (not too many requests)
 - Conservative (avoids timeouts)
 
 **Alternative considered:** `limit=1000`
+
 - **Rejected:** Risk of timeouts or memory issues
 
 **Alternative considered:** `limit=10`
+
 - **Rejected:** Too many requests, slower overall
 
 ### Handling Large Datasets
 
 **10,000 records:**
+
 - 100 API requests
 - ~30 seconds (at 300ms per request)
 
 **50,000 records:**
+
 - 500 API requests
 - ~2.5 minutes
 
@@ -416,6 +456,7 @@ Continue until fewer than 100 records returned
 **Filter:** Project status = "completed"
 
 **Rationale:**
+
 - Completed projects are archived
 - Don't need ongoing sync
 - Clutters NocoDB with old data
@@ -427,6 +468,7 @@ Continue until fewer than 100 records returned
 **Filter:** Project is template for recurring tasks
 
 **Rationale:**
+
 - Recurring projects are templates, not actual projects
 - Individual instances are separate projects
 
@@ -437,6 +479,7 @@ Continue until fewer than 100 records returned
 **Filter:** NocoDB Status = "Canceled"
 
 **Rationale:**
+
 - Canceled projects shouldn't have tags modified
 - But project data can still be synced (one-way)
 
@@ -445,6 +488,7 @@ Continue until fewer than 100 records returned
 ### Including All Other Projects
 
 **Included:**
+
 - Active projects
 - Projects without areas
 - Projects without notes
@@ -459,11 +503,13 @@ Continue until fewer than 100 records returned
 **Scenario:** Sync succeeds for some projects, fails for others
 
 **Behavior:**
+
 1. Continue syncing remaining projects
 2. Track successful and failed projects
 3. Display summary at end
 
 **Example:**
+
 ```
 Synced 15 projects:
   ✓ 12 successful
@@ -476,6 +522,7 @@ Failed projects:
 ```
 
 **Rationale:**
+
 - Maximize successful syncs
 - Don't fail entire batch for individual errors
 - User can retry failed projects individually
@@ -485,11 +532,13 @@ Failed projects:
 **Current approach:** No automatic retry
 
 **Rationale:**
+
 - Errors are often configuration issues
 - User should investigate and fix root cause
 - Automatic retry could mask problems
 
 **Manual retry:**
+
 ```bash
 # Retry specific project
 deno task start sync --uuid ABC123
@@ -502,6 +551,7 @@ deno task start sync --uuid ABC123
 **Answer:** No
 
 **Rationale:**
+
 - Sync is meant to be idempotent
 - Re-running sync should fix issues
 - No transaction support across Things and NocoDB
@@ -515,12 +565,14 @@ deno task start sync --uuid ABC123
 **Decision:** Require UUID field in NocoDB
 
 **Trade-off:**
+
 - ✓ Reliable matching
 - ✓ Handles renames
 - ✗ Extra field in NocoDB
 - ✗ Manual schema setup
 
 **Alternative:** Title-only matching
+
 - ✗ Unreliable with renames
 - ✓ No extra field needed
 
@@ -531,11 +583,13 @@ deno task start sync --uuid ABC123
 **Decision:** Only status is bidirectional, other fields are one-way
 
 **Trade-off:**
+
 - ✓ Simpler logic
 - ✓ Clear source of truth (Things)
 - ✗ Can't update project data from NocoDB
 
 **Alternative:** Full bidirectional sync
+
 - ✗ Complex conflict resolution
 - ✗ Unclear source of truth
 - ✓ More flexible
@@ -547,12 +601,14 @@ deno task start sync --uuid ABC123
 **Decision:** Prompt user when no match found
 
 **Trade-off:**
+
 - ✓ User control
 - ✓ Prevents unwanted records
 - ✗ Requires user attention
 - ✗ Can't run unattended
 
 **Alternative:** Auto-create records
+
 - ✗ May create duplicates
 - ✗ Less control
 - ✓ Fully automated
@@ -564,12 +620,14 @@ deno task start sync --uuid ABC123
 **Decision:** Use Things tags for status (not a separate field)
 
 **Trade-off:**
+
 - ✓ Works with Things' architecture
 - ✓ Visible in Things UI
 - ✗ Mixed with other tags
 - ✗ Requires tag management
 
 **Alternative:** Don't sync status back to Things
+
 - ✗ Status only in NocoDB
 - ✓ Simpler implementation
 

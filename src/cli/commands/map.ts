@@ -421,7 +421,10 @@ async function interactiveMappingSetup(config: ConfigManager): Promise<void> {
     { key: "id", label: "Project UUID" },
     { key: "notes", label: "Project notes/goals" },
     { key: "area", label: "Project area" },
-    { key: "status", label: "Project status (enables bidirectional sync NocoDB→Things)" },
+    {
+      key: "status",
+      label: "Project status (enables bidirectional sync NocoDB→Things)",
+    },
   ];
 
   const mappings = config.get("fieldMappings") || {};

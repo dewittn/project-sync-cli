@@ -11,13 +11,15 @@
 
 ### Credential Storage
 
-**Important:** prjsync stores NocoDB API tokens in **plain text** in the configuration file:
+**Important:** prjsync stores NocoDB API tokens in **plain text** in the
+configuration file:
 
 ```
 ~/.prjsync/config.json
 ```
 
-This is a known limitation of the current implementation. The token is not encrypted and can be read by anyone with access to this file.
+This is a known limitation of the current implementation. The token is not
+encrypted and can be read by anyone with access to this file.
 
 ### Protecting Your Credentials
 
@@ -31,17 +33,21 @@ To minimize security risks:
 
 2. **Never commit your configuration file to version control**
 
-3. **Use tokens with minimal permissions** - Only grant the NocoDB token access to the specific table you're syncing
+3. **Use tokens with minimal permissions** - Only grant the NocoDB token access
+   to the specific table you're syncing
 
-4. **Rotate tokens regularly** - Generate new tokens periodically in NocoDB settings
+4. **Rotate tokens regularly** - Generate new tokens periodically in NocoDB
+   settings
 
 5. **Be aware of backups** - Home directory backups will include your API token
 
-For detailed security recommendations, see the [Configuration Security Guide](docs/reference/configuration.md#security-considerations).
+For detailed security recommendations, see the
+[Configuration Security Guide](docs/reference/configuration.md#security-considerations).
 
 ### macOS-Specific Considerations
 
-prjsync runs on macOS and uses AppleScript to interact with Things 3. This means:
+prjsync runs on macOS and uses AppleScript to interact with Things 3. This
+means:
 
 - The tool requires permission to control Things 3 via System Events
 - You should only run prjsync from trusted sources
@@ -49,7 +55,8 @@ prjsync runs on macOS and uses AppleScript to interact with Things 3. This means
 
 ## Reporting a Vulnerability
 
-If you discover a security vulnerability in prjsync, please report it responsibly:
+If you discover a security vulnerability in prjsync, please report it
+responsibly:
 
 ### What to Report
 
@@ -71,17 +78,21 @@ Instead, please report security issues via one of these methods:
 
 2. **Direct contact** (if Security Advisories is unavailable):
    - Create a new issue with the title "Security: [Brief Description]"
-   - In the body, state "I have a security concern and would like to be contacted privately"
+   - In the body, state "I have a security concern and would like to be
+     contacted privately"
    - DO NOT include vulnerability details in the issue
    - A maintainer will reach out to you privately
 
 ### What to Expect
 
-1. **Acknowledgment**: You'll receive a response within 48 hours acknowledging receipt of your report
+1. **Acknowledgment**: You'll receive a response within 48 hours acknowledging
+   receipt of your report
 
-2. **Investigation**: The maintainer will investigate the issue and determine its severity
+2. **Investigation**: The maintainer will investigate the issue and determine
+   its severity
 
-3. **Resolution**: Security vulnerabilities will be addressed in the following priority order:
+3. **Resolution**: Security vulnerabilities will be addressed in the following
+   priority order:
    - Critical: Within 7 days
    - High: Within 14 days
    - Medium: Within 30 days
