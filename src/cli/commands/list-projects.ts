@@ -31,7 +31,13 @@ ${bold("OPTIONS:")}
 ${bold("DESCRIPTION:")}
   This command connects to Things 3 and retrieves a list of all projects.
   It uses AppleScript to query Things 3 directly. You can also get detailed
-  information about specific projects including area, notes, UUID, and deadline.
+  information about specific projects including:
+
+  - Basic info: title, UUID, status
+  - Organization: area, contact, tags
+  - Dates: created, modified, scheduled, deadline, completed
+  - Task statistics: total tasks, completed tasks, pending tasks, progress percentage
+  - Notes and additional details
 
 ${bold("EXAMPLES:")}
   prjsync list-projects              # List all projects
@@ -135,25 +141,95 @@ ${bold("EXAMPLES:")}
 function displayProjectDetails(details: ProjectDetails): void {
   console.log(green(`\n✅ Project Details:\n`));
 
-  console.log(`${bold("Title:")}     ${details.title}`);
-  console.log(`${bold("UUID:")}      ${cyan(details.uuid)}`);
+  // Basic Information
+  console.log(bold("BASIC INFORMATION"));
+  console.log(`  Title:         ${details.title}`);
+  console.log(`  UUID:          ${cyan(details.uuid)}`);
+  console.log(
+    `  Status:        ${
+      details.status
+        ? (details.status === "open"
+          ? green(details.status)
+          : details.status === "completed"
+          ? cyan(details.status)
+          : yellow(details.status))
+        : dim("(none)")
+    }`,
+  );
 
-  if (details.area) {
-    console.log(`${bold("Area:")}      ${details.area}`);
+  // Organization
+  console.log(`\n${bold("ORGANIZATION")}`);
+  console.log(
+    `  Area:          ${details.area ? details.area : dim("(none)")}`,
+  );
+  console.log(
+    `  Contact:       ${details.contact ? details.contact : dim("(none)")}`,
+  );
+  console.log(
+    `  Tags:          ${
+      details.tags && details.tags.length > 0
+        ? cyan(details.tags.join(", "))
+        : dim("(none)")
+    }`,
+  );
+
+  // Dates
+  console.log(`\n${bold("DATES")}`);
+  console.log(
+    `  Created:       ${
+      details.creationDate ? yellow(details.creationDate) : dim("(none)")
+    }`,
+  );
+  console.log(
+    `  Modified:      ${
+      details.modificationDate
+        ? yellow(details.modificationDate)
+        : dim("(none)")
+    }`,
+  );
+  console.log(
+    `  Scheduled:     ${
+      details.scheduledDate ? yellow(details.scheduledDate) : dim("(none)")
+    }`,
+  );
+  console.log(
+    `  Deadline:      ${
+      details.deadline ? red(details.deadline) : dim("(none)")
+    }`,
+  );
+  console.log(
+    `  Completed:     ${
+      details.completionDate ? cyan(details.completionDate) : dim("(none)")
+    }`,
+  );
+
+  // Task Statistics
+  console.log(`\n${bold("TASKS")}`);
+  if (
+    details.todoCount !== undefined &&
+    details.completedTodoCount !== undefined
+  ) {
+    const totalTasks = details.todoCount;
+    const completedTasks = details.completedTodoCount;
+    const pendingTasks = totalTasks - completedTasks;
+    const completionPercentage = totalTasks > 0
+      ? Math.round((completedTasks / totalTasks) * 100)
+      : 0;
+
+    console.log(`  Total:         ${green(totalTasks.toString())}`);
+    console.log(`  Completed:     ${cyan(completedTasks.toString())}`);
+    console.log(`  Pending:       ${yellow(pendingTasks.toString())}`);
+    console.log(`  Progress:      ${cyan(`${completionPercentage}%`)}`);
   } else {
-    console.log(`${bold("Area:")}      ${dim("(none)")}`);
+    console.log(`  Total:         ${dim("(none)")}`);
   }
 
-  if (details.deadline) {
-    console.log(`${bold("Deadline:")}  ${yellow(details.deadline)}`);
-  } else {
-    console.log(`${bold("Deadline:")}  ${dim("(none)")}`);
-  }
-
+  // Notes
+  console.log(`\n${bold("NOTES")}`);
   if (details.notes) {
-    console.log(`${bold("Notes:")}\n${details.notes}`);
+    console.log(`  ${details.notes.split("\n").join("\n  ")}`);
   } else {
-    console.log(`${bold("Notes:")}     ${dim("(none)")}`);
+    console.log(`  ${dim("(none)")}`);
   }
 
   console.log();

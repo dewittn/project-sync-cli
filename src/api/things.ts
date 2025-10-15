@@ -17,6 +17,15 @@ export interface ProjectDetails {
   area?: string;
   notes?: string;
   deadline?: string;
+  tags?: string[];
+  status?: string;
+  creationDate?: string;
+  modificationDate?: string;
+  completionDate?: string;
+  scheduledDate?: string;
+  todoCount?: number;
+  completedTodoCount?: number;
+  contact?: string;
 }
 
 export interface TestConnectionResult {
@@ -425,6 +434,15 @@ export class ThingsClient {
         set projectNotes to ""
         set projectArea to ""
         set projectDeadline to ""
+        set projectTags to ""
+        set projectStatus to ""
+        set projectCreationDate to ""
+        set projectModificationDate to ""
+        set projectCompletionDate to ""
+        set projectScheduledDate to ""
+        set projectTodoCount to ""
+        set projectCompletedTodoCount to ""
+        set projectContact to ""
 
         try
           set projectNotes to notes of foundProject as string
@@ -438,7 +456,53 @@ export class ThingsClient {
           set projectDeadline to due date of foundProject as string
         end try
 
-        return "TITLE:" & projectTitle & "|UUID:" & projectUuid & "|AREA:" & projectArea & "|NOTES:" & projectNotes & "|DEADLINE:" & projectDeadline
+        try
+          set tagList to tag names of foundProject
+          if tagList is not {} and tagList is not missing value then
+            set AppleScript's text item delimiters to ","
+            set projectTags to tagList as string
+            set AppleScript's text item delimiters to ""
+          end if
+        end try
+
+        try
+          set projectStatus to status of foundProject as string
+        end try
+
+        try
+          set projectCreationDate to creation date of foundProject as string
+        end try
+
+        try
+          set projectModificationDate to modification date of foundProject as string
+        end try
+
+        try
+          set projectCompletionDate to completion date of foundProject as string
+        end try
+
+        try
+          set projectScheduledDate to activation date of foundProject as string
+        end try
+
+        try
+          set allTodos to to dos of foundProject
+          set projectTodoCount to count of allTodos
+          set completedCount to 0
+          repeat with t in allTodos
+            if status of t is completed then
+              set completedCount to completedCount + 1
+            end if
+          end repeat
+          set projectCompletedTodoCount to completedCount as string
+          set projectTodoCount to projectTodoCount as string
+        end try
+
+        try
+          set projectContact to contact of foundProject as string
+        end try
+
+        return "TITLE:" & projectTitle & "|UUID:" & projectUuid & "|AREA:" & projectArea & "|NOTES:" & projectNotes & "|DEADLINE:" & projectDeadline & "|TAGS:" & projectTags & "|STATUS:" & projectStatus & "|CREATION_DATE:" & projectCreationDate & "|MODIFICATION_DATE:" & projectModificationDate & "|COMPLETION_DATE:" & projectCompletionDate & "|SCHEDULED_DATE:" & projectScheduledDate & "|TODO_COUNT:" & projectTodoCount & "|COMPLETED_TODO_COUNT:" & projectCompletedTodoCount & "|CONTACT:" & projectContact
       end tell
     `;
 
@@ -477,18 +541,90 @@ export class ThingsClient {
         details.uuid = part.substring(5);
       } else if (part.startsWith("AREA:")) {
         const area = part.substring(5);
-        if (area && area !== "missing value") {
+        if (area && area !== "missing value" && area.trim() !== "") {
           details.area = area;
         }
       } else if (part.startsWith("NOTES:")) {
         const notes = part.substring(6);
-        if (notes && notes !== "missing value") {
+        if (notes && notes !== "missing value" && notes.trim() !== "") {
           details.notes = notes;
         }
       } else if (part.startsWith("DEADLINE:")) {
         const deadline = part.substring(9);
-        if (deadline && deadline !== "missing value") {
+        if (
+          deadline && deadline !== "missing value" && deadline.trim() !== ""
+        ) {
           details.deadline = deadline;
+        }
+      } else if (part.startsWith("TAGS:")) {
+        const tags = part.substring(5);
+        if (tags && tags !== "missing value" && tags.trim() !== "") {
+          details.tags = tags.split(",").map((t) => t.trim()).filter((t) =>
+            t !== ""
+          );
+        }
+      } else if (part.startsWith("STATUS:")) {
+        const status = part.substring(7);
+        if (status && status !== "missing value" && status.trim() !== "") {
+          details.status = status;
+        }
+      } else if (part.startsWith("CREATION_DATE:")) {
+        const creationDate = part.substring(14);
+        if (
+          creationDate && creationDate !== "missing value" &&
+          creationDate.trim() !== ""
+        ) {
+          details.creationDate = creationDate;
+        }
+      } else if (part.startsWith("MODIFICATION_DATE:")) {
+        const modificationDate = part.substring(18);
+        if (
+          modificationDate && modificationDate !== "missing value" &&
+          modificationDate.trim() !== ""
+        ) {
+          details.modificationDate = modificationDate;
+        }
+      } else if (part.startsWith("COMPLETION_DATE:")) {
+        const completionDate = part.substring(16);
+        if (
+          completionDate && completionDate !== "missing value" &&
+          completionDate.trim() !== ""
+        ) {
+          details.completionDate = completionDate;
+        }
+      } else if (part.startsWith("SCHEDULED_DATE:")) {
+        const scheduledDate = part.substring(15);
+        if (
+          scheduledDate && scheduledDate !== "missing value" &&
+          scheduledDate.trim() !== ""
+        ) {
+          details.scheduledDate = scheduledDate;
+        }
+      } else if (part.startsWith("TODO_COUNT:")) {
+        const todoCount = part.substring(11);
+        if (
+          todoCount && todoCount !== "missing value" && todoCount.trim() !== ""
+        ) {
+          const count = parseInt(todoCount.trim());
+          if (!isNaN(count)) {
+            details.todoCount = count;
+          }
+        }
+      } else if (part.startsWith("COMPLETED_TODO_COUNT:")) {
+        const completedTodoCount = part.substring(21);
+        if (
+          completedTodoCount && completedTodoCount !== "missing value" &&
+          completedTodoCount.trim() !== ""
+        ) {
+          const count = parseInt(completedTodoCount.trim());
+          if (!isNaN(count)) {
+            details.completedTodoCount = count;
+          }
+        }
+      } else if (part.startsWith("CONTACT:")) {
+        const contact = part.substring(8);
+        if (contact && contact !== "missing value" && contact.trim() !== "") {
+          details.contact = contact;
         }
       }
     }
