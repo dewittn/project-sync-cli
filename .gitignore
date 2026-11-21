@@ -14,3 +14,7 @@
 
 # Deno
 .deno/
+
+# Local development data and secrets (never commit)
+dev-data/
+.env
